@@ -11,10 +11,7 @@
  *
  */
 
-//"use strict";
-
-//import { pseudoRandomBytes } from "crypto";
-//import { notDeepEqual } from "assert";
+"use strict";
 
 // ==================================================================
 // constantes globais
@@ -49,44 +46,22 @@ var gCtx = {
   perspectiva: mat4(), // projection matrix
 };
 
-  // ==================================================================
-  // chama a main quando terminar de carregar a janela
-  window.onload = main;
+// ==================================================================
+// chama a main quando terminar de carregar a janela
+window.onload = main;
 
-  /**
-  * programa principal.
-  */
-  function main() {
-   // Cargar biblioteca MVnew.js
-  var MVnewScript = document.createElement('script');
-  MVnewScript.src = 'libs/MVnew.js';
-  MVnewScript.onload = function() {
-      // Lógica que depende de MVnew.js
-      // Puedes cargar la siguiente biblioteca aquí o llamar a una función que lo haga.
-  };
-  document.head.appendChild(MVnewScript);
-
-  // Cargar biblioteca macWebglUtils.js
-  var macWebglUtilsScript = document.createElement('script');
-  macWebglUtilsScript.src = 'libs/macWebglUtils.js';
-  macWebglUtilsScript.onload = function() {
-      // Lógica que depende de macWebglUtils.js
-      // Puedes iniciar tu aplicación aquí
-  };
-  document.head.appendChild(macWebglUtilsScript);
-
+/**
+ * programa principal.
+ */
+function main() {
   // ambiente
   gCanvas = document.getElementById("glcanvas");
   gl = gCanvas.getContext('webgl2');
-  if (!gl) {
-      console.error("¡Error al inicializar el contexto WebGL!");
-      alert("Vixe! Não achei WebGL 2.0 aqui :-(");
-  } else {
-      console.log("¡Contexto WebGL inicializado correctamente!");
-  }
+  if (!gl) alert("Vixe! Não achei WebGL 2.0 aqui :-(");
 
-console.log("Canvas: ", gCanvas.width, gCanvas.height);
-
+  console.log("Canvas: ", gCanvas.width, gCanvas.height);
+  const fileInput = document.getElementById('fileInput');
+    fileInput.addEventListener('change', handleFileSelect);
 
   // cria cubo com textura
   crieCubo();
@@ -163,12 +138,10 @@ function crieShaders() {
   gl.vertexAttribPointer(aTexCoord, 2, gl.FLOAT, false, 0, 0);
   gl.enableVertexAttribArray(aTexCoord);
 
-  configureTexturaDaURL(URL);
-  gl.uniform1i(gl.getUniformLocation(gShader.program, "uTextureMap"), 0);
+  //configureTexturaDaURL(URL);
+  //configureTextureFromImage(img);
+  //gl.uniform1i(gl.getUniformLocation(gShader.program, "uTextureMap"), 0);
 
-
-  //var textureLocation = gl.getUniformLocation(program, "uTextureMap");
-  //gl.uniform1i(textureLocation, 0);
 };
 
 // ==================================================================
@@ -198,7 +171,6 @@ function render() {
 // a primeira linha deve conter "#version 300 es"
 // para WebGL 2.0
 
-// Vertex Shader
 var gVertexShaderSrc = `#version 300 es
 // buffers de entrada
 in vec3 aPosition;
@@ -207,19 +179,21 @@ in vec2 aTexCoord;
 uniform mat4 uModelView;
 uniform mat4 uPerspective;
 
-out vec2 vTexCoord; // Coordenadas de textura que se pasan al Fragment Shader
+out vec2 vTexCoord;
 
 void main() {
     gl_Position = uPerspective * uModelView * vec4(aPosition, 1);
-    vTexCoord = aTexCoord;  // Pasa las coordenadas de textura al Fragment Shader
+    // Experimento: corrección de perspectiva manual. 
+    // Remova o comentário da linha abaixo para ver o que acontece.
+    // gl_Position /= gl_Position.w;
+    vTexCoord = aTexCoord; 
 }
 `;
 
-// Fragment Shader
 var gFragmentShaderSrc = `#version 300 es
 precision highp float;
 
-in vec2 vTexCoord; // Coordenadas de textura recibidas desde el Vertex Shader
+in vec2 vTexCoord;
 uniform sampler2D uTextureMap;
 
 out vec4 outColor;
@@ -228,7 +202,6 @@ void main() {
   outColor = texture(uTextureMap, vTexCoord);
 }
 `;
-
 
 
 // posições dos 8 vértices de um cubo de lado 1
@@ -245,8 +218,12 @@ var vCubo = [
   vec3(0.5, -0.5, -0.5)
 ];
 
-const URL = "/home/estela/Videos-Estela/cubo/imagen.jpeg";
+// textura: coordenadas (s, t) entre 0 e 1.
+//const URL = "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a5/Flower_poster_2.jpg/1200px-Flower_poster_2.jpg"
+//const URL = "https://www.canalmascotas.com/wp-content/uploads/files/article/e/etapas-de-vida-del-primer-mes-del-cachorro_5wb3s.jpg"
+//const URL = "https://upload.wikimedia.org/wikipedia/commons/6/64/Bichon_Frise_600.jpg"
 
+const URL = "imagen.jpeg"
 var gaTexCoords = [];
 var vTextura = [      // valores escolhidos para recortar a parte desejada
   vec2(0.05, 0.05),
@@ -295,45 +272,49 @@ function crieCubo() {
   quad(4, 5, 6, 7);
   quad(5, 4, 0, 1);
 };
-/**
- * Recibe la URL de la imagen y configura la textura.
- * @param {URL} url - URL de la imagen.
- */
-function configureTexturaDaURL(url) {
-  console.log("opencv.js cargando correctamente");
-  // Crear una nueva promesa para cargar la imagen con opencv.js
-  return new Promise((resolve, reject) => {
-      // Cargar la imagen usando opencv.js
-      cv.imread(url, (image) => {
-          if (image.data) {
-              // Configurar la textura como antes
-              var texture = gl.createTexture();
-              gl.activeTexture(gl.TEXTURE0);
-              gl.bindTexture(gl.TEXTURE_2D, texture);
-              gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array(image.data));
-              gl.generateMipmap(gl.TEXTURE_2D);
-              gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
 
-              // Resolver la promesa con la imagen cargada
-              resolve(image);
-          } else {
-            console.error('Error loading image:', url);
-              // Rechazar la promesa si hay un error al cargar la imagen
-              reject(new Error("Error al cargar la imagen con opencv.js"));
-          }
-      });
-  });
+
+
+// Llama a esta función al cargar tu script
+function setupFileInput() {
+  var fileInput = document.getElementById('fileInput');
+  fileInput.addEventListener('change', handleFileSelect);
+}
+function configureTextureFromImage(img) {
+  // Crear una textura WebGL
+  var texture = gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D, texture);
+
+  // Configurar la textura con la imagen cargada
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img);
+
+  // Configurar parámetros de la textura para permitir mipmapping
+  gl.generateMipmap(gl.TEXTURE_2D);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+
+  // Asignar la textura al sampler en el shader
+  gl.activeTexture(gl.TEXTURE0); // Puedes usar otras unidades de textura según sea necesario
+  gl.bindTexture(gl.TEXTURE_2D, texture);
 }
 
-configureTexturaDaURL(URL)
-    .then((image) => {
-        // Tu lógica aquí
-        // image es la imagen cargada con opencv.js
-        console.log("Imagen cargada con éxito:", image);
-    })
-    .catch((error) => {
-        console.error("Error al cargar la imagen:", error);
-    });
 
+function handleFileSelect(event) {
+  var file = event.target.files[0];
+  if (file) {
+    var reader = new FileReader();
+    reader.onload = function(e) {
+      var img = new Image();
+      img.onload = function() {
+        configureTextureFromImage(img);
+        render();
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  }
+}
 
+setupFileInput();
+main();
 
