@@ -1,14 +1,13 @@
 /**
- * Programa usando WegGL para demonstrar a animação 3D de um cubo
- * em perspectiva com rotação em cada eixo e com textura quadriculada.
+ * Programa que utiliza WebGL para demostrar la animación 3D de un cubo
+ * en perspectiva con rotación en cada eje y con textura de cuadrícula.
  *  
- * Bibliotecas utilizadas
- * macWebglUtils.js
- * MVnew.js do livro -- Interactive Computer Graphics
+ * Bibliotecas utilizadas:
+ *  macWebglUtils.js
+ *  MVnew.js del libro "Interactive Computer Graphics"
  * 
- * Esse programa foi baseado em um exemplo do capítulo 7 do livro 
- * Interactive Computer Graphics - Angel & Shreiner.
- *
+ * Este programa se basó en un ejemplo del capítulo 7 del libro 
+ * "Interactive Computer Graphics" de Angel & Shreiner.
  */
 
 "use strict";
@@ -153,7 +152,7 @@ function render() {
   gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
   // modelo muda a cada frame da animação
-  if (!gCtx.pause) gCtx.theta[gCtx.axis] += 2.0;
+  if (!gCtx.pause) gCtx.theta[gCtx.axis] += 1.0;
 
   let rx = rotateX(gCtx.theta[EIXO_X]);
   let ry = rotateY(gCtx.theta[EIXO_Y]);
@@ -317,4 +316,3 @@ function handleFileSelect(event) {
 
 setupFileInput();
 main();
-
