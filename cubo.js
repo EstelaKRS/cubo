@@ -64,6 +64,10 @@ function main() {
 
   // cria cubo com textura
   crieCubo();
+  // llama a numerarCara después de crear el cubo
+  for (let i = 0; i < 6; i++) {
+    numerarCara(i);
+  }
 
   // interface
   crieInterface();
@@ -75,6 +79,8 @@ function main() {
 
   // shaders
   crieShaders();
+  // configureTextureFromImage debe llamarse después de numerarCara
+  //configureTextureFromImage(img);
 
   // finalmente...
   render();
@@ -162,7 +168,6 @@ function render() {
   gl.uniformMatrix4fv(gShader.uModelView, false, flatten(mult(gCtx.vista, model)));
 
   gl.drawArrays(gl.TRIANGLES, 0, gCtx.numV);
-
   window.requestAnimationFrame(render);
 }
 // ========================================================
@@ -216,6 +221,7 @@ var vCubo = [
   vec3(0.5, 0.5, -0.5),
   vec3(0.5, -0.5, -0.5)
 ];
+console.log('vCubo:', vCubo);
 
 // textura: coordenadas (s, t) entre 0 e 1.
 //const URL = "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a5/Flower_poster_2.jpg/1200px-Flower_poster_2.jpg"
@@ -224,12 +230,70 @@ var vCubo = [
 
 const URL = "imagen.jpeg"
 var gaTexCoords = [];
-var vTextura = [      // valores escolhidos para recortar a parte desejada
+// valores escolhidos para recortar a parte desejada
+var vTextura = [      
   vec2(0.05, 0.05),
   vec2(0.05, 0.75),
   vec2(0.95, 0.75),
-  vec2(0.95, 0.05)
+  vec2(0.95, 0.05),
+  
 ];
+// Coordenadas de textura para enumerar las esquinas
+var vNumeros = [
+  vec2(0.0, 0.0),  // Esquina inferior izquierda
+  vec2(0.0, 1.0),  // Esquina superior izquierda
+  vec2(1.0, 1.0),  // Esquina superior derecha
+  vec2(1.0, 0.0)   // Esquina inferior derecha
+];
+/**
+ * Numerar las caras del cubo.
+ * @param {Number} faceIndex Índice de la cara.
+ * @param {Number} textureIndex Índice de la textura a asignar.
+ */
+function numerarCara(faceIndex) {
+
+  var red = vec3(1.0, 0.0, 0.0);
+
+  // Asegurarse de que el índice de la cara sea válido
+  if (faceIndex >= 0 && faceIndex < vCubo.length / 4) {
+    var baseIndex = faceIndex * 4;
+
+    for (let i = 0; i < 4; i++) {
+      var vertexIndex = baseIndex + i;
+      var v = vec3(vCubo[vertexIndex][0], vCubo[vertexIndex][1], vCubo[vertexIndex][2]);
+    
+      gaPosicoes.push(0.8 * v);
+      gaTexCoords.push(vNumeros[i]);
+      console.log('Face:', faceIndex, 'Vertex:', vertexIndex, 'TexCoord:', vNumeros[i]);
+    }
+  } else {
+    console.error('Índice de cara fuera de rango:', faceIndex);
+  }
+}
+
+/**
+ * Función lineal personalizada para interpolar entre dos valores.
+ * @param {Number|Array} u - Primer valor o vector.
+ * @param {Number|Array} v - Segundo valor o vector.
+ * @param {Number} s - Factor de interpolación.
+ * @returns {Number|Array} - Valor o vector interpolado.
+ */
+function interpolar(u, v, s) {
+  if (typeof u === 'number' && typeof v === 'number') {
+    return (1.0 - s) * u + s * v;
+  }
+
+  if (u.length != v.length) {
+    throw "Vector dimension mismatch";
+  }
+
+  var result = new Array(u.length);
+  for (var i = 0; i < u.length; ++i) {
+    result[i] = (1.0 - s) * u[i] + s * v[i];
+  }
+  result.type = u.type;
+  return result;
+}
 
 /**
  * recebe 4 indices de vertices de uma face
@@ -241,24 +305,35 @@ var vTextura = [      // valores escolhidos para recortar a parte desejada
  * @param {Number} d 
  */
 function quad(a, b, c, d) {
-  gaPosicoes.push(vCubo[a]);
-  gaTexCoords.push(vTextura[0]);
+  if (
+    a >= 0 && a < vCubo.length &&
+    b >= 0 && b < vCubo.length &&
+    c >= 0 && c < vCubo.length &&
+    d >= 0 && d < vCubo.length
+  ) {
+    gaPosicoes.push(vCubo[a]);
+    gaTexCoords.push(vTextura[0]);
 
-  gaPosicoes.push(vCubo[b]);
-  gaTexCoords.push(vTextura[1]);
+    gaPosicoes.push(vCubo[b]);
+    gaTexCoords.push(vTextura[1]);
 
-  gaPosicoes.push(vCubo[c]);
-  gaTexCoords.push(vTextura[2]);
+    gaPosicoes.push(vCubo[c]);
+    gaTexCoords.push(vTextura[2]);
 
-  gaPosicoes.push(vCubo[a]);
-  gaTexCoords.push(vTextura[0]);
+    gaPosicoes.push(vCubo[a]);
+    gaTexCoords.push(vTextura[0]);
 
-  gaPosicoes.push(vCubo[c]);
-  gaTexCoords.push(vTextura[2]);
+    gaPosicoes.push(vCubo[c]);
+    gaTexCoords.push(vTextura[2]);
 
-  gaPosicoes.push(vCubo[d]);
-  gaTexCoords.push(vTextura[3]);
-};
+    gaPosicoes.push(vCubo[d]);
+    gaTexCoords.push(vTextura[3]);
+  } 
+  //else {
+    //console.error("Índice de cara fuera de rango:", a, b, c, d);
+  //}
+}
+
 
 /**
  *  define as seis faces de um cubo usando os 8 vértices
@@ -270,9 +345,12 @@ function crieCubo() {
   quad(6, 5, 1, 2);
   quad(4, 5, 6, 7);
   quad(5, 4, 0, 1);
-};
 
-
+  for (let i = 0; i < 6; i++) {
+    quad(i * 4, i * 4 + 1, i * 4 + 2, i * 4 + 3);
+    numerarCara(i);
+  }
+}
 
 // Llama a esta función al cargar tu script
 function setupFileInput() {
