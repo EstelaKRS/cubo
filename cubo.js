@@ -130,6 +130,9 @@ function crieShaders() {
   // que é feita apenas 1 vez
   gCtx.perspectiva = perspective(FOVY, ASPECT, NEAR, FAR);
   gl.uniformMatrix4fv(gShader.uPerspective, false, flatten(gCtx.perspectiva));
+  
+  // Agregar esta línea junto con otros uniformes en la función crieShaders
+  gShader.uNumeroCara = gl.getUniformLocation(gShader.program, "uNumeroCara");
 
   // calcula a matriz de transformação da camera, apenas 1 vez
   gCtx.vista = lookAt(eye, at, up);
@@ -157,7 +160,7 @@ function crieShaders() {
 function render() {
   gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
-  // modelo muda a cada frame da animação
+  // modelo muda a cada frame da animacion 
   if (!gCtx.pause) gCtx.theta[gCtx.axis] += 1.0;
 
   let rx = rotateX(gCtx.theta[EIXO_X]);
@@ -166,8 +169,14 @@ function render() {
   let model = mult(rz, mult(ry, rx));
 
   gl.uniformMatrix4fv(gShader.uModelView, false, flatten(mult(gCtx.vista, model)));
-
-  gl.drawArrays(gl.TRIANGLES, 0, gCtx.numV);
+  // Iterar sobre las caras y renderizar cada una con su número
+  for (let i = 0; i < 6; i++) {
+    // Configurar el número de la cara para el shader
+    gl.uniform1i(gShader.uNumeroCara, i + 1);
+    // Renderizar la cara
+    gl.drawArrays(gl.TRIANGLES, i * 6, 6);
+  }
+  //gl.drawArrays(gl.TRIANGLES, 0, gCtx.numV);
   window.requestAnimationFrame(render);
 }
 // ========================================================
@@ -194,18 +203,55 @@ void main() {
 }
 `;
 
+
 var gFragmentShaderSrc = `#version 300 es
 precision highp float;
 
 in vec2 vTexCoord;
 uniform sampler2D uTextureMap;
+uniform int uNumeroCara;
 
 out vec4 outColor;
 
 void main() {
-  outColor = texture(uTextureMap, vTexCoord);
+    // Obtener el color de la textura
+    vec4 texColor = texture(uTextureMap, vTexCoord);
+
+    // Si no hay textura, establecemos un color de fondo negro
+    if (texColor.a == 0.0) {
+        outColor = vec4(0.0, 0.0, 0.0, 1.0);
+        return;
+    }
+
+    // Calcular la distancia al centro de la cara
+    float distanciaAlCentro = length(vTexCoord - vec2(0.5, 0.5));
+
+    // Ajustar el tamaño del número
+    float tamanoNumero = 0.2;
+
+    // Verificar si estamos en el centro de la cara y asignar el color del número
+    if (distanciaAlCentro < tamanoNumero) {
+        // Asignar un color sólido para cada número de cara
+        if (uNumeroCara == 1) {
+            outColor = vec4(1.0, 0.0, 0.0, 1.0); // Rojo
+        } else if (uNumeroCara == 2) {
+            outColor = vec4(0.0, 1.0, 0.0, 1.0); // Verde
+        } else if (uNumeroCara == 3) {
+            outColor = vec4(0.0, 0.0, 1.0, 1.0); // Azul
+        } else if (uNumeroCara == 4) {
+            outColor = vec4(1.0, 1.0, 0.0, 1.0); // Amarillo
+        } else if (uNumeroCara == 5) {
+            outColor = vec4(1.0, 0.0, 1.0, 1.0); // Magenta
+        } else if (uNumeroCara == 6) {
+            outColor = vec4(0.0, 1.0, 1.0, 1.0); // Cian
+        }
+    } else {
+        // Si no estamos en el centro de la cara, establecer el color al de la textura
+        outColor = texColor;
+    }
 }
 `;
+
 
 
 // posições dos 8 vértices de um cubo de lado 1
@@ -221,7 +267,6 @@ var vCubo = [
   vec3(0.5, 0.5, -0.5),
   vec3(0.5, -0.5, -0.5)
 ];
-console.log('vCubo:', vCubo);
 
 // textura: coordenadas (s, t) entre 0 e 1.
 //const URL = "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a5/Flower_poster_2.jpg/1200px-Flower_poster_2.jpg"
@@ -250,26 +295,29 @@ var vNumeros = [
  * @param {Number} faceIndex Índice de la cara.
  * @param {Number} textureIndex Índice de la textura a asignar.
  */
+// Agrega la siguiente función para establecer el número de cara en el shader
+function setNumeroCara(numeroCara) {
+  gl.uniform1i(gShader.uNumeroCara, numeroCara);
+}
+
+// Modifica la función numerarCara para que funcione con las nuevas incorporaciones
 function numerarCara(faceIndex) {
-
-  var red = vec3(1.0, 0.0, 0.0);
-
   // Asegurarse de que el índice de la cara sea válido
   if (faceIndex >= 0 && faceIndex < vCubo.length / 4) {
     var baseIndex = faceIndex * 4;
 
-    for (let i = 0; i < 4; i++) {
-      var vertexIndex = baseIndex + i;
-      var v = vec3(vCubo[vertexIndex][0], vCubo[vertexIndex][1], vCubo[vertexIndex][2]);
-    
-      gaPosicoes.push(0.8 * v);
-      gaTexCoords.push(vNumeros[i]);
-      console.log('Face:', faceIndex, 'Vertex:', vertexIndex, 'TexCoord:', vNumeros[i]);
-    }
-  } else {
-    console.error('Índice de cara fuera de rango:', faceIndex);
-  }
+    // Llamar a la función quad una vez para cada cara
+    quad(baseIndex, baseIndex + 1, baseIndex + 2, baseIndex + 3);
+
+    // Configurar el número de cara para el shader
+    setNumeroCara(faceIndex + 1);
+  } 
+  //else {
+    //console.error('Índice de cara fuera de rango:', faceIndex);
+  //}
 }
+
+
 
 /**
  * Función lineal personalizada para interpolar entre dos valores.
@@ -394,3 +442,28 @@ function handleFileSelect(event) {
 
 setupFileInput();
 main();
+
+// Obtener referencias a elementos HTML
+const colorButton = document.getElementById('colorButton');
+const colorDropdown = document.getElementById('colorDropdown');
+
+// Agregar evento de clic al botón de color
+colorButton.addEventListener('click', () => {
+    // Mostrar la lista de colores
+    colorDropdown.style.display = 'block';
+});
+
+// Manejar la selección de color
+const colorList = document.getElementById('colorList');
+colorList.addEventListener('change', () => {
+    // Obtener el color seleccionado
+    const selectedColor = colorList.value;
+
+    // Hacer lo que necesites con el color seleccionado (puedes llamar a una función, etc.)
+    console.log('Color seleccionado:', selectedColor);
+    // Ocultar la lista de colores después de seleccionar uno
+    colorDropdown.style.display = 'none';
+});
+
+
+
