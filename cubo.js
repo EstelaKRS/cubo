@@ -48,43 +48,54 @@ var gCtx = {
 // ==================================================================
 // chama a main quando terminar de carregar a janela
 window.onload = main;
+// arreglo para almacenar texturas
+var gTextures = [];
+
+// variable para rastrear el color actual seleccionado
+var gCurrentColor = 'rojo';
 
 /**
  * programa principal.
  */
 function main() {
-  // ambiente
+  // Configuración del ambiente WebGL
   gCanvas = document.getElementById("glcanvas");
   gl = gCanvas.getContext('webgl2');
-  if (!gl) alert("Vixe! Não achei WebGL 2.0 aqui :-(");
+  
+  if (!gl) {
+    console.error("¡Vaya! No se encontró WebGL 2.0 aquí :-(");
+    return;
+  }
 
   console.log("Canvas: ", gCanvas.width, gCanvas.height);
-  const fileInput = document.getElementById('fileInput');
-    fileInput.addEventListener('change', handleFileSelect);
 
-  // cria cubo com textura
+  const fileInput = document.getElementById('fileInput');
+  if (fileInput) {
+    fileInput.addEventListener('change', handleFileSelect);
+  } else {
+    console.error("Elemento 'fileInput' no encontrado en el documento.");
+  }
+
+  // Crear cubo con textura y numerar las caras
   crieCubo();
-  // llama a numerarCara después de crear el cubo
   for (let i = 0; i < 6; i++) {
     numerarCara(i);
   }
 
-  // interface
+  // Configuración de la interfaz
   crieInterface();
 
-  // Inicializações feitas apenas 1 vez
+  // Inicializaciones realizadas una vez
   gl.viewport(0, 0, gCanvas.width, gCanvas.height);
   gl.clearColor(FUNDO[0], FUNDO[1], FUNDO[2], FUNDO[3]);
   gl.enable(gl.DEPTH_TEST);
 
-  // shaders
+  // Configurar shaders y renderizar
   crieShaders();
-  // configureTextureFromImage debe llamarse después de numerarCara
-  //configureTextureFromImage(img);
-
-  // finalmente...
   render();
+  setupFileInput();
 }
+
 
 // ==================================================================
 /**
@@ -103,6 +114,14 @@ function crieInterface() {
   document.getElementById("pButton").onclick = function () {
     gCtx.pause = !gCtx.pause;
   };
+  // En la función crieInterface, donde manejas la selección de color
+  document.getElementById("colorList").addEventListener('change', function() {
+  gCurrentColor = this.value;
+  // Cargar las imágenes correspondientes a cada cara
+  for (let i = 0; i < 6; i++) {
+    loadTextureFromImage(colorImageMap[gCurrentColor], i);
+  }
+});
 }
 
 // ==================================================================
@@ -145,6 +164,11 @@ function crieShaders() {
   var aTexCoord = gl.getAttribLocation(gShader.program, "aTexCoord");
   gl.vertexAttribPointer(aTexCoord, 2, gl.FLOAT, false, 0, 0);
   gl.enableVertexAttribArray(aTexCoord);
+
+  // Para cada cara, crea un uniform para la textura correspondiente
+  for (let i = 0; i < 6; i++) {
+    gShader[`uTextureMap${i}`] = gl.getUniformLocation(gShader.program, `uTextureMap${i}`);
+  }
 
   //configureTexturaDaURL(URL);
   //configureTextureFromImage(img);
@@ -306,16 +330,16 @@ function numerarCara(faceIndex) {
   if (faceIndex >= 0 && faceIndex < vCubo.length / 4) {
     var baseIndex = faceIndex * 4;
 
-    // Llamar a la función quad una vez para cada cara
-    quad(baseIndex, baseIndex + 1, baseIndex + 2, baseIndex + 3);
-
     // Configurar el número de cara para el shader
     setNumeroCara(faceIndex + 1);
-  } 
-  //else {
-    //console.error('Índice de cara fuera de rango:', faceIndex);
-  //}
+
+    // Llamar a la función quad una vez para cada cara
+    quad(baseIndex, baseIndex + 1, baseIndex + 2, baseIndex + 3);
+  } else {
+    console.error("Índice de cara fuera de rango:", faceIndex);
+  }
 }
+
 
 
 
@@ -403,8 +427,16 @@ function crieCubo() {
 // Llama a esta función al cargar tu script
 function setupFileInput() {
   var fileInput = document.getElementById('fileInput');
-  fileInput.addEventListener('change', handleFileSelect);
+
+  // Verificar si el elemento existe antes de agregar el evento
+  if (fileInput) {
+    fileInput.addEventListener('change', handleFileSelect);
+  } else {
+    console.error("Elemento 'fileInput' no encontrado en el documento.");
+  }
 }
+
+
 function configureTextureFromImage(img) {
   // Crear una textura WebGL
   var texture = gl.createTexture();
@@ -438,6 +470,7 @@ function handleFileSelect(event) {
     };
     reader.readAsDataURL(file);
   }
+  
 }
 
 setupFileInput();
@@ -446,6 +479,12 @@ main();
 // Obtener referencias a elementos HTML
 const colorButton = document.getElementById('colorButton');
 const colorDropdown = document.getElementById('colorDropdown');
+const fileInput = document.getElementById('fileInput');
+console.log('fileInput:', fileInput);
+
+const imageButton = document.getElementById('imageButton');
+console.log('imageButton:', imageButton);
+
 
 // Agregar evento de clic al botón de color
 colorButton.addEventListener('click', () => {
@@ -458,12 +497,66 @@ const colorList = document.getElementById('colorList');
 colorList.addEventListener('change', () => {
     // Obtener el color seleccionado
     const selectedColor = colorList.value;
+    // Mostrar el botón de seleccionar imagen
+    imageButton.style.display = 'block';
 
     // Hacer lo que necesites con el color seleccionado (puedes llamar a una función, etc.)
     console.log('Color seleccionado:', selectedColor);
     // Ocultar la lista de colores después de seleccionar uno
-    colorDropdown.style.display = 'none';
+    //colorDropdown.style.display = 'none';
 });
+
+// Manejar la selección de imagen
+if (imageButton && fileInput) {
+    imageButton.addEventListener('click', () => {
+        // Mostrar el cuadro de diálogo para seleccionar archivo al hacer clic en el botón de imagen
+        fileInput.click();
+    });
+
+    fileInput.addEventListener('change', handleFileSelect);
+} else {
+    console.error("Elemento 'imageButton' o 'fileInput' no encontrado en el documento.");
+}
+// Definir un mapa de colores a arreglos de URLs de imágenes
+const colorImageMap = {
+  rojo: ['url_rojo_1.jpg', 'url_rojo_2.jpg', 'url_rojo_3.jpg', 'url_rojo_4.jpg', 'url_rojo_5.jpg', 'url_rojo_6.jpg'],
+  verde: ['url_verde_1.jpg', 'url_verde_2.jpg', 'url_verde_3.jpg', 'url_verde_4.jpg', 'url_verde_5.jpg', 'url_verde_6.jpg'],
+  azul: ['url_azul_1.jpg', 'url_azul_2.jpg', 'url_azul_3.jpg', 'url_azul_4.jpg', 'url_azul_5.jpg', 'url_azul_6.jpg'],
+  amarillo: ['url_amarillo_1.jpg', 'url_amarillo_2.jpg', 'url_amarillo_3.jpg', 'url_amarillo_4.jpg', 'url_amarillo_5.jpg', 'url_amarillo_6.jpg'],
+  magenta: ['url_magenta_1.jpg', 'url_magenta_2.jpg', 'url_magenta_3.jpg', 'url_magenta_4.jpg', 'url_magenta_5.jpg', 'url_magenta_6.jpg'],
+  cian: ['url_cian_1.jpg', 'url_cian_2.jpg', 'url_cian_3.jpg', 'url_cian_4.jpg', 'url_cian_5.jpg', 'url_cian_6.jpg'],
+};
+
+// Maneja la selección de color
+colorList.addEventListener('change', () => {
+  // Obtener el color seleccionado
+  const selectedColor = colorList.value;
+  // Obtener la URL de la imagen asociada al color
+  const imageUrl = colorImageMap[selectedColor];
+  // Mostrar el botón de seleccionar imagen
+  imageButton.style.display = 'block';
+  // Cargar la imagen en la textura
+  loadTextureFromImage(imageUrl);
+  // Hacer lo que necesites con el color seleccionado
+  console.log('Color seleccionado:', selectedColor);
+});
+
+// Función para cargar la textura desde una imagen
+function loadTextureFromImage(imageUrls, faceIndex) {
+  // Verificar que el índice de cara sea válido
+  if (faceIndex >= 0 && faceIndex < imageUrls.length) {
+    var img = new Image();
+    img.onload = function() {
+      configureTextureFromImage(img, faceIndex);
+      render();
+    };
+    img.src = imageUrls[faceIndex];
+    // añadir la textura al arreglo
+    gTextures[faceIndex] = img;
+  } else {
+    console.error("Índice de cara fuera de rango:", faceIndex);
+  }
+}
 
 
 
