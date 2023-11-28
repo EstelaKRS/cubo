@@ -50,7 +50,6 @@ var gCtx = {
 window.onload = main;
 // arreglo para almacenar texturas
 var gTextures = [];
-
 // variable para rastrear el color actual seleccionado
 var gCurrentColor = 'rojo';
 
@@ -95,7 +94,7 @@ function main() {
   // Configurar shaders y renderizar
   crieShaders();
   render();
-  setupFileInput();
+  //setupFileInput();
 }
 
 
@@ -116,19 +115,18 @@ function crieInterface() {
   document.getElementById("pButton").onclick = function () {
     gCtx.pause = !gCtx.pause;
   };
-  // En la función crieInterface, donde manejas la selección de color
+  // Manejar el cambio de color seleccionado
   document.getElementById("colorList").addEventListener('change', function() {
     gCurrentColor = this.value;
-  
+
     // Obtener el índice de cara correspondiente al color seleccionado
-    const indiceDeCara = obtenerIndiceDeCaraPorColor(gCurrentColor);
-  
-    // Depuración: Imprimir el color y el índice de cara
-    console.log('Color seleccionado:', gCurrentColor);
-    console.log('Índice de cara:', indiceDeCara);
-  
-    // Cargar las imágenes correspondientes a la cara específica
-    loadTextureFromImage(colorImageMap[gCurrentColor], indiceDeCara);
+    const faceIndex = obtenerIndiceDeCaraPorColor(gCurrentColor);
+
+    // Obtener la URL de la imagen según el color seleccionado
+    const imageUrl = `url_${gCurrentColor}.jpg`; // Asegúrate de tener las imágenes con los nombres adecuados
+
+    // Cargar la textura para la cara seleccionada
+    loadTextureFromImage(imageUrl, faceIndex);
   });
 }  
 
@@ -190,6 +188,7 @@ function crieShaders() {
  * Assume que os dados já foram carregados e são estáticos.
  */
 function render() {
+  gl.useProgram(gShader.program);  // Asegúrate de usar el programa de shaders antes de realizar operaciones
   gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
   // modelo muda a cada frame da animacion 
@@ -349,8 +348,6 @@ function numerarCara(faceIndex) {
 }
 
 
-
-
 /**
  * Función lineal personalizada para interpolar entre dos valores.
  * @param {Number|Array} u - Primer valor o vector.
@@ -418,6 +415,8 @@ function quad(a, b, c, d) {
 /**
  *  define as seis faces de um cubo usando os 8 vértices
  */
+let gCaras = [];  // Agrega esta línea para definir gCaras
+
 function crieCubo() {
   quad(1, 0, 3, 2);
   quad(2, 3, 7, 6);
@@ -426,11 +425,17 @@ function crieCubo() {
   quad(4, 5, 6, 7);
   quad(5, 4, 0, 1);
 
+  // Llenar gCaras con las caras del cubo
   for (let i = 0; i < 6; i++) {
-    quad(i * 4, i * 4 + 1, i * 4 + 2, i * 4 + 3);
+    const cara = {
+      puntos: [i * 4, i * 4 + 1, i * 4 + 2, i * 4 + 3],
+      indice: i,
+    };
+    gCaras.push(cara);
     numerarCara(i);
   }
 }
+
 
 // Llama a esta función al cargar tu script
 function setupFileInput() {
@@ -455,13 +460,14 @@ function configureTextureFromImage(img) {
 
   // Configurar parámetros de la textura para permitir mipmapping
   gl.generateMipmap(gl.TEXTURE_2D);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST_MIPMAP_LINEAR);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
 
   // Asignar la textura al sampler en el shader
   gl.activeTexture(gl.TEXTURE0); // Puedes usar otras unidades de textura según sea necesario
   gl.bindTexture(gl.TEXTURE_2D, texture);
 }
+
 
 
 function handleFileSelect(event) {
@@ -481,18 +487,11 @@ function handleFileSelect(event) {
   
 }
 
-//setupFileInput();
-//main();
-
 // Obtener referencias a elementos HTML
 const colorButton = document.getElementById('colorButton');
 const colorDropdown = document.getElementById('colorDropdown');
 const fileInput = document.getElementById('fileInput');
-console.log('fileInput:', fileInput);
-
 const imageButton = document.getElementById('imageButton');
-console.log('imageButton:', imageButton);
-
 
 // Agregar evento de clic al botón de color
 colorButton.addEventListener('click', () => {
@@ -550,42 +549,33 @@ colorList.addEventListener('change', () => {
 });
 
 // Función para cargar la textura desde una imagen
-function loadTextureFromImage(imageUrls, faceIndex) {
+// Función para cargar la textura desde una imagen
+function loadTextureFromImage(imageUrl, faceIndex) {
   // Verificar que el índice de cara sea válido
-  if (faceIndex >= 0 && faceIndex < imageUrls.length) {
+  if (faceIndex >= 0 && faceIndex < 6) {
     var img = new Image();
     img.onload = function() {
+      // Configurar la textura con la imagen cargada
       configureTextureFromImage(img, faceIndex);
-      render();
+      // Añadir la textura al arreglo
+      gTextures[faceIndex] = img;
+      render();  // Asegúrate de que render() se llame después de cargar la textura
     };
-    img.src = imageUrls[faceIndex];
-    // añadir la textura al arreglo
-    gTextures[faceIndex].push(img);
+    img.onerror = function() {
+      console.error("Error al cargar la imagen:", img.src);
+    };
+    img.src = imageUrl;
   } else {
     console.error("Índice de cara fuera de rango:", faceIndex);
   }
 }
 
+
+
 // Función para obtener el índice de cara por color
 function obtenerIndiceDeCaraPorColor(color) {
-  // Utilizar un mapeo de colores a índices
-  const mapeoDeColorAIndice = {
-    rojo: 0,
-    verde: 1,
-    azul: 2,
-    amarillo: 3,
-    magenta: 4,
-    cian: 5
-  };
-
-  // Verificar si el color está en el mapeo
-  if (color in mapeoDeColorAIndice) {
-    // Devolver el índice correspondiente al color
-    return mapeoDeColorAIndice[color];
-  } else {
-    // Manejar el caso en el que el color no tiene un índice asignado
-    console.error("Color no válido:", color);
-    // Puedes devolver un valor predeterminado o lanzar un error, según tus necesidades
-    return 0; // Devuelve el índice 0 como valor predeterminado en caso de color no válido
-  }
+  const colores = ['rojo', 'verde', 'azul', 'amarillo', 'magenta', 'cian'];
+  const indice = colores.indexOf(color);
+  return indice !== -1 ? indice : 0;
 }
+
