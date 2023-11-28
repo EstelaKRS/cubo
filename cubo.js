@@ -78,8 +78,10 @@ function main() {
 
   // Crear cubo con textura y numerar las caras
   crieCubo();
+
+  // Inicializar la matriz de texturas (6 caras x N texturas por cara)
   for (let i = 0; i < 6; i++) {
-    numerarCara(i);
+    gTextures[i] = [];
   }
 
   // Configuración de la interfaz
@@ -116,13 +118,19 @@ function crieInterface() {
   };
   // En la función crieInterface, donde manejas la selección de color
   document.getElementById("colorList").addEventListener('change', function() {
-  gCurrentColor = this.value;
-  // Cargar las imágenes correspondientes a cada cara
-  for (let i = 0; i < 6; i++) {
-    loadTextureFromImage(colorImageMap[gCurrentColor], i);
-  }
-});
-}
+    gCurrentColor = this.value;
+  
+    // Obtener el índice de cara correspondiente al color seleccionado
+    const indiceDeCara = obtenerIndiceDeCaraPorColor(gCurrentColor);
+  
+    // Depuración: Imprimir el color y el índice de cara
+    console.log('Color seleccionado:', gCurrentColor);
+    console.log('Índice de cara:', indiceDeCara);
+  
+    // Cargar las imágenes correspondientes a la cara específica
+    loadTextureFromImage(colorImageMap[gCurrentColor], indiceDeCara);
+  });
+}  
 
 // ==================================================================
 /**
@@ -473,8 +481,8 @@ function handleFileSelect(event) {
   
 }
 
-setupFileInput();
-main();
+//setupFileInput();
+//main();
 
 // Obtener referencias a elementos HTML
 const colorButton = document.getElementById('colorButton');
@@ -552,11 +560,32 @@ function loadTextureFromImage(imageUrls, faceIndex) {
     };
     img.src = imageUrls[faceIndex];
     // añadir la textura al arreglo
-    gTextures[faceIndex] = img;
+    gTextures[faceIndex].push(img);
   } else {
     console.error("Índice de cara fuera de rango:", faceIndex);
   }
 }
 
+// Función para obtener el índice de cara por color
+function obtenerIndiceDeCaraPorColor(color) {
+  // Utilizar un mapeo de colores a índices
+  const mapeoDeColorAIndice = {
+    rojo: 0,
+    verde: 1,
+    azul: 2,
+    amarillo: 3,
+    magenta: 4,
+    cian: 5
+  };
 
-
+  // Verificar si el color está en el mapeo
+  if (color in mapeoDeColorAIndice) {
+    // Devolver el índice correspondiente al color
+    return mapeoDeColorAIndice[color];
+  } else {
+    // Manejar el caso en el que el color no tiene un índice asignado
+    console.error("Color no válido:", color);
+    // Puedes devolver un valor predeterminado o lanzar un error, según tus necesidades
+    return 0; // Devuelve el índice 0 como valor predeterminado en caso de color no válido
+  }
+}
