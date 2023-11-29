@@ -118,16 +118,22 @@ function crieInterface() {
   // Manejar el cambio de color seleccionado
   document.getElementById("colorList").addEventListener('change', function() {
     gCurrentColor = this.value;
-
-    // Obtener el índice de cara correspondiente al color seleccionado
-    const faceIndex = obtenerIndiceDeCaraPorColor(gCurrentColor);
-
-    // Obtener la URL de la imagen según el color seleccionado
-    const imageUrl = `url_${gCurrentColor}.jpg`; // Asegúrate de tener las imágenes con los nombres adecuados
-
-    // Cargar la textura para la cara seleccionada
-    loadTextureFromImage(imageUrl, faceIndex);
+  
+    const indiceDeCara = obtenerIndiceDeCaraPorColor(gCurrentColor);
+   
+    console.log('Color seleccionado:', gCurrentColor);
+    console.log('Índice de cara:', indiceDeCara);
+  
+    // Obtén el elemento de video
+    var video = document.getElementById("video");
+  
+    // Cargar el video correspondiente a la cara específica
+    loadTextureFromVideo(video, indiceDeCara);
   });
+  // Nuevo botón para seleccionar video
+  const videoInput = document.getElementById('videoInput');
+  videoInput.addEventListener('change', handleVideoSelect);
+  
 }  
 
 // ==================================================================
@@ -449,49 +455,46 @@ function setupFileInput() {
   }
 }
 
+// Modifica la función configureTextureFromVideo
+function configureTextureFromVideo(video, faceIndex) {
+  // Verificar que el índice de cara sea válido
+  if (faceIndex >= 0 && faceIndex < gTextures.length) {
+    // Crear una textura WebGL
+    var texture = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, texture);
 
-function configureTextureFromImage(img) {
-  // Crear una textura WebGL
-  var texture = gl.createTexture();
-  gl.bindTexture(gl.TEXTURE_2D, texture);
+    // Configurar la textura con el video
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, video);
 
-  // Configurar la textura con la imagen cargada
-  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img);
+    // Configurar parámetros de la textura para permitir mipmapping
+    gl.generateMipmap(gl.TEXTURE_2D);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
 
-  // Configurar parámetros de la textura para permitir mipmapping
-  gl.generateMipmap(gl.TEXTURE_2D);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST_MIPMAP_LINEAR);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    // Asignar la textura al sampler en el shader
+    gl.activeTexture(gl.TEXTURE0 + faceIndex);  // Utiliza unidades de textura diferentes para cada cara
+    gl.bindTexture(gl.TEXTURE_2D, texture);
 
-  // Asignar la textura al sampler en el shader
-  gl.activeTexture(gl.TEXTURE0); // Puedes usar otras unidades de textura según sea necesario
-  gl.bindTexture(gl.TEXTURE_2D, texture);
+    // Asegúrate de que render() se llama después de cargar la textura
+    render();
+  } else {
+    console.error("Índice de cara fuera de rango:", faceIndex);
+  }
 }
 
-
-
-function handleFileSelect(event) {
-  var file = event.target.files[0];
-  if (file) {
-    var reader = new FileReader();
-    reader.onload = function(e) {
-      var img = new Image();
-      img.onload = function() {
-        configureTextureFromImage(img);
-        render();
-      };
-      img.src = e.target.result;
-    };
-    reader.readAsDataURL(file);
+function handleVideoSelect() {
+  const selectedVideo = videoInput.files[0];
+  if (selectedVideo) {
+      loadVideo(selectedVideo);
   }
-  
 }
 
 // Obtener referencias a elementos HTML
 const colorButton = document.getElementById('colorButton');
 const colorDropdown = document.getElementById('colorDropdown');
 const fileInput = document.getElementById('fileInput');
-const imageButton = document.getElementById('imageButton');
+const videoInput = document.getElementById('videoInput');
+
 
 // Agregar evento de clic al botón de color
 colorButton.addEventListener('click', () => {
@@ -514,25 +517,30 @@ colorList.addEventListener('change', () => {
 });
 
 // Manejar la selección de imagen
-if (imageButton && fileInput) {
-    imageButton.addEventListener('click', () => {
-        // Mostrar el cuadro de diálogo para seleccionar archivo al hacer clic en el botón de imagen
-        fileInput.click();
-    });
+if (imageButton && fileInput && videoInput) {
+  // Botón de imagen
+  imageButton.addEventListener('click', () => {
+      fileInput.click();
+  });
 
-    fileInput.addEventListener('change', handleFileSelect);
+  // Selector de archivo
+  fileInput.addEventListener('change', handleFileSelect);
+
+  // Selector de video
+  videoInput.addEventListener('change', handleVideoSelect);
 } else {
-    console.error("Elemento 'imageButton' o 'fileInput' no encontrado en el documento.");
+  console.error("Elemento 'imageButton', 'fileInput' o 'videoInput' no encontrado en el documento.");
 }
-// Definir un mapa de colores a arreglos de URLs de imágenes
-const colorImageMap = {
-  rojo: ['url_rojo_1.jpg', 'url_rojo_2.jpg', 'url_rojo_3.jpg', 'url_rojo_4.jpg', 'url_rojo_5.jpg', 'url_rojo_6.jpg'],
-  verde: ['url_verde_1.jpg', 'url_verde_2.jpg', 'url_verde_3.jpg', 'url_verde_4.jpg', 'url_verde_5.jpg', 'url_verde_6.jpg'],
-  azul: ['url_azul_1.jpg', 'url_azul_2.jpg', 'url_azul_3.jpg', 'url_azul_4.jpg', 'url_azul_5.jpg', 'url_azul_6.jpg'],
-  amarillo: ['url_amarillo_1.jpg', 'url_amarillo_2.jpg', 'url_amarillo_3.jpg', 'url_amarillo_4.jpg', 'url_amarillo_5.jpg', 'url_amarillo_6.jpg'],
-  magenta: ['url_magenta_1.jpg', 'url_magenta_2.jpg', 'url_magenta_3.jpg', 'url_magenta_4.jpg', 'url_magenta_5.jpg', 'url_magenta_6.jpg'],
-  cian: ['url_cian_1.jpg', 'url_cian_2.jpg', 'url_cian_3.jpg', 'url_cian_4.jpg', 'url_cian_5.jpg', 'url_cian_6.jpg'],
+// Definir un mapa de colores a arreglos de URLs de videos
+const colorVideoMap = {
+  rojo: ['url_rojo_1.mp4', 'url_rojo_2.mp4', 'url_rojo_3.mp4', 'url_rojo_4.mp4', 'url_rojo_5.mp4', 'url_rojo_6.mp4'],
+  verde: ['url_verde_1.mp4', 'url_verde_2.mp4', 'url_verde_3.mp4', 'url_verde_4.mp4', 'url_verde_5.mp4', 'url_verde_6.mp4'],
+  azul: ['url_azul_1.mp4', 'url_azul_2.mp4', 'url_azul_3.mp4', 'url_azul_4.mp4', 'url_azul_5.mp4', 'url_azul_6.mp4'],
+  amarillo: ['url_amarillo_1.mp4', 'url_amarillo_2.mp4', 'url_amarillo_3.mp4', 'url_amarillo_4.mp4', 'url_amarillo_5.mp4', 'url_amarillo_6.mp4'],
+  magenta: ['url_magenta_1.mp4', 'url_magenta_2.mp4', 'url_magenta_3.mp4', 'url_magenta_4.mp4', 'url_magenta_5.mp4', 'url_magenta_6.mp4'],
+  cian: ['url_cian_1.mp4', 'url_cian_2.mp4', 'url_cian_3.mp4', 'url_cian_4.mp4', 'url_cian_5.mp4', 'url_cian_6.mp4'],
 };
+
 
 // Maneja la selección de color
 colorList.addEventListener('change', () => {
@@ -548,28 +556,21 @@ colorList.addEventListener('change', () => {
   console.log('Color seleccionado:', selectedColor);
 });
 
-// Función para cargar la textura desde una imagen
-// Función para cargar la textura desde una imagen
-function loadTextureFromImage(imageUrl, faceIndex) {
+// Función para cargar la textura desde un video
+// Modifica la función loadTextureFromVideo
+function loadTextureFromVideo(videoUrls, faceIndex) {
   // Verificar que el índice de cara sea válido
-  if (faceIndex >= 0 && faceIndex < 6) {
-    var img = new Image();
-    img.onload = function() {
-      // Configurar la textura con la imagen cargada
-      configureTextureFromImage(img, faceIndex);
-      // Añadir la textura al arreglo
-      gTextures[faceIndex] = img;
-      render();  // Asegúrate de que render() se llame después de cargar la textura
-    };
-    img.onerror = function() {
-      console.error("Error al cargar la imagen:", img.src);
-    };
-    img.src = imageUrl;
+  if (faceIndex >= 0 && faceIndex < videoUrls.length) {
+    var video = document.getElementById('video');
+    video.src = videoUrls[faceIndex];
+    video.load(); // Cargar el video
+    video.play(); // Reproducir el video
+
+    configureTextureFromVideo(video, faceIndex);
   } else {
     console.error("Índice de cara fuera de rango:", faceIndex);
   }
 }
-
 
 
 // Función para obtener el índice de cara por color

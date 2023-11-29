@@ -31,13 +31,16 @@
                     <option value="magenta">Magenta</option>
                     <option value="cian">Cian</option>
                 </select>
-                 <!-- Nuevo botón para seleccionar imagen -->
-        <button id="imageButton" style="display: none;">Seleccionar Imagen</button>
+                 <!-- Nuevo botón para seleccionar video -->
+                <input type="file" id="videoInput" accept="video/*">
             </div>
         </div>
         
     </div>
-    <input type="file" id="fileInput" accept="image/*">
+    <!-- Video oculto para cargar videos -->
+    <video id="video" autoplay controls style="display:none">
+        Tu navegador no soporta la etiqueta de video.
+    </video>
     
     <script src="cubo.js"></script>
 </body>
