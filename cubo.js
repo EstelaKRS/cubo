@@ -5,9 +5,6 @@
  * Bibliotecas utilizadas:
  *  macWebglUtils.js
  *  MVnew.js del libro "Interactive Computer Graphics"
- * 
- * Este programa se basó en un ejemplo del capítulo 7 del libro 
- * "Interactive Computer Graphics" de Angel & Shreiner.
  */
 
 "use strict";
@@ -78,10 +75,10 @@ function main() {
   // Crear cubo con textura y numerar las caras
   crieCubo();
 
-  // Inicializar la matriz de texturas (6 caras x N texturas por cara)
-  for (let i = 0; i < 6; i++) {
-    gTextures[i] = [];
-  }
+  // Inicializar la matriz de texturas (6 caras x N videos por cara)
+for (let i = 0; i < 6; i++) {
+  gTextures[i] = ['video_url_1', 'video_url_2', 'video_url_3', 'video_url_4', 'video_url_5', 'video_url_6'];
+}
 
   // Configuración de la interfaz
   crieInterface();
@@ -216,6 +213,8 @@ function render() {
   //gl.drawArrays(gl.TRIANGLES, 0, gCtx.numV);
   window.requestAnimationFrame(render);
 }
+
+
 // ========================================================
 // Código fonte dos shaders em GLSL
 // a primeira linha deve conter "#version 300 es"
@@ -310,7 +309,7 @@ var vCubo = [
 //const URL = "https://www.canalmascotas.com/wp-content/uploads/files/article/e/etapas-de-vida-del-primer-mes-del-cachorro_5wb3s.jpg"
 //const URL = "https://upload.wikimedia.org/wikipedia/commons/6/64/Bichon_Frise_600.jpg"
 
-const URL = "imagen.jpeg"
+const URL = "video.jpeg"
 var gaTexCoords = [];
 // valores escolhidos para recortar a parte desejada
 var vTextura = [      
@@ -482,19 +481,40 @@ function configureTextureFromVideo(video, faceIndex) {
   }
 }
 
+// Función para cargar el video en el reproductor
+function loadVideo(videoUrl) {
+  const video = document.getElementById('video');
+  
+  // Configurar el source del elemento de video
+  video.src = videoUrl;
+  
+  // Asignar el video al elemento de video
+  video.load();
+  
+  // Reproducir el video
+  video.play();
+}
+
+// Manejar la selección de video
 function handleVideoSelect() {
   const selectedVideo = videoInput.files[0];
   if (selectedVideo) {
-      loadVideo(selectedVideo);
+    const fileReader = new FileReader();
+    fileReader.onload = function (event) {
+      const videoUrl = event.target.result;
+      loadTextureFromVideo(videoUrl, obtenerIndiceDeCaraPorColor(gCurrentColor));
+    };
+    fileReader.readAsDataURL(selectedVideo);
   }
 }
+
 
 // Obtener referencias a elementos HTML
 const colorButton = document.getElementById('colorButton');
 const colorDropdown = document.getElementById('colorDropdown');
 const fileInput = document.getElementById('fileInput');
+const videoButton = document.getElementById('videoButton');  // Nuevo botón de video
 const videoInput = document.getElementById('videoInput');
-
 
 // Agregar evento de clic al botón de color
 colorButton.addEventListener('click', () => {
@@ -507,19 +527,27 @@ const colorList = document.getElementById('colorList');
 colorList.addEventListener('change', () => {
     // Obtener el color seleccionado
     const selectedColor = colorList.value;
-    // Mostrar el botón de seleccionar imagen
-    imageButton.style.display = 'block';
-
+    // Mostrar el botón de seleccionar video
+    videoButton.style.display = 'block';
     // Hacer lo que necesites con el color seleccionado (puedes llamar a una función, etc.)
     console.log('Color seleccionado:', selectedColor);
     // Ocultar la lista de colores después de seleccionar uno
-    //colorDropdown.style.display = 'none';
+    colorDropdown.style.display = 'none';
 });
 
-// Manejar la selección de imagen
-if (imageButton && fileInput && videoInput) {
-  // Botón de imagen
-  imageButton.addEventListener('click', () => {
+// Manejar la selección de video
+videoButton.addEventListener('click', () => {
+    videoInput.click();
+});
+
+// Manejar la selección de video desde el campo de entrada
+videoInput.addEventListener('change', handleVideoSelect);
+
+
+// Manejar la selección del video
+if (videoButton && fileInput && videoInput) {
+  // Botón de video
+  videoButton.addEventListener('click', () => {
       fileInput.click();
   });
 
@@ -529,7 +557,7 @@ if (imageButton && fileInput && videoInput) {
   // Selector de video
   videoInput.addEventListener('change', handleVideoSelect);
 } else {
-  console.error("Elemento 'imageButton', 'fileInput' o 'videoInput' no encontrado en el documento.");
+  console.error("Elemento 'videoButton', 'fileInput' o 'videoInput' no encontrado en el documento.");
 }
 // Definir un mapa de colores a arreglos de URLs de videos
 const colorVideoMap = {
@@ -546,32 +574,59 @@ const colorVideoMap = {
 colorList.addEventListener('change', () => {
   // Obtener el color seleccionado
   const selectedColor = colorList.value;
-  // Obtener la URL de la imagen asociada al color
-  const imageUrl = colorImageMap[selectedColor];
-  // Mostrar el botón de seleccionar imagen
-  imageButton.style.display = 'block';
-  // Cargar la imagen en la textura
-  loadTextureFromImage(imageUrl);
+  // Obtener la URL del video asociado al color
+  const videoUrl = colorVideoMap[selectedColor];
+  // Mostrar el botón de seleccionar video
+  videoButton.style.display = 'block';
+  // Cargar el video en el reproductor
+  loadVideo(videoUrl);
   // Hacer lo que necesites con el color seleccionado
   console.log('Color seleccionado:', selectedColor);
 });
 
 // Función para cargar la textura desde un video
-// Modifica la función loadTextureFromVideo
-function loadTextureFromVideo(videoUrls, faceIndex) {
+function loadTextureFromVideo(videoUrl, faceIndex) {
   // Verificar que el índice de cara sea válido
-  if (faceIndex >= 0 && faceIndex < videoUrls.length) {
-    var video = document.getElementById('video');
-    video.src = videoUrls[faceIndex];
-    video.load(); // Cargar el video
-    video.play(); // Reproducir el video
+  if (faceIndex >= 0 && faceIndex < gTextures.length) {
+    // Crear una textura WebGL
+    var texture = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, texture);
 
-    configureTextureFromVideo(video, faceIndex);
+    // Crear un elemento de video
+    var video = document.createElement('video');
+    video.crossOrigin = 'anonymous';  // Si los videos están en otro dominio
+
+    // Configurar el source del elemento de video
+    video.src = videoUrl;
+    video.load(); // Cargar el video
+
+    // Esperar a que el video esté cargado para configurar la textura
+    video.onloadeddata = function() {
+      // Configurar la textura con el video
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, video);
+      gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, true);
+
+      // Configurar parámetros de la textura para permitir mipmapping
+      gl.generateMipmap(gl.TEXTURE_2D);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+
+      // Asignar la textura al sampler en el shader
+      gl.activeTexture(gl.TEXTURE0 + faceIndex);  // Utiliza unidades de textura diferentes para cada cara
+      gl.bindTexture(gl.TEXTURE_2D, texture);
+
+      // Asegúrate de que render() se llame después de cargar la textura
+      render();
+    };
+    // Reproducir el video
+    video.src = videoUrl;
+    video.load();
+    video.play();
+
   } else {
     console.error("Índice de cara fuera de rango:", faceIndex);
   }
 }
-
 
 // Función para obtener el índice de cara por color
 function obtenerIndiceDeCaraPorColor(color) {

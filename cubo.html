@@ -4,12 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Cubo 3D</title>
-    <!-- <style src = botones.css></style> -->
     <link rel="stylesheet" href="botones.css">
     <script src="libs/macWebglUtils.js"></script>
     <script src="libs/MVnew.js"></script>
     <script src="opencv.js"></script>
-
 </head>
 <body>
     <h1>Cubo con videos</h1>
@@ -19,7 +17,7 @@
         <button id="yButton">Rotar Y</button>
         <button id="zButton">Rotar Z</button>
         <button id="pButton">Pausa/Rotar</button>
-        <!-- Botón de color con lista desplegable -->
+
         <div class="dropdown">
             <button id="colorButton" class="dropbtn">Seleccionar Color</button>
             <div id="colorDropdown" style="display: none;">
@@ -31,17 +29,16 @@
                     <option value="magenta">Magenta</option>
                     <option value="cian">Cian</option>
                 </select>
-                 <!-- Nuevo botón para seleccionar video -->
-                <input type="file" id="videoInput" accept="video/*">
+                <button id="videoButton">Seleccionar Video</button>
+                <input type="file" id="videoInput" accept="video/*" style="display:none;">
             </div>
         </div>
-        
     </div>
-    <!-- Video oculto para cargar videos -->
+
     <video id="video" autoplay controls style="display:none">
         Tu navegador no soporta la etiqueta de video.
     </video>
-    
+
     <script src="cubo.js"></script>
 </body>
 </html>
