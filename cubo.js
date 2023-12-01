@@ -117,8 +117,6 @@ function crieInterface() {
     gCurrentColor = this.value;
   
     const indiceDeCara = obtenerIndiceDeCaraPorColor(gCurrentColor);
-   
-    console.log('Color seleccionado:', gCurrentColor);
     console.log('Índice de cara:', indiceDeCara);
   
     // Obtén el elemento de video
@@ -580,8 +578,6 @@ colorList.addEventListener('change', () => {
   videoButton.style.display = 'block';
   // Cargar el video en el reproductor
   loadVideo(videoUrl);
-  // Hacer lo que necesites con el color seleccionado
-  console.log('Color seleccionado:', selectedColor);
 });
 
 // Función para cargar la textura desde un video
