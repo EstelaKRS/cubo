@@ -12,15 +12,33 @@
 
 </head>
 <body>
-    <h1>Cubo con videos</h1>
+    <h1>Imagen con videos</h1>
     <div class="canvas-container">
         <canvas id="glcanvas" width="400" height="400"></canvas>
         <button id="xButton">Rotar X</button>
         <button id="yButton">Rotar Y</button>
         <button id="zButton">Rotar Z</button>
         <button id="pButton">Pausa/Rotar</button>
+        <!-- Botón de color con lista desplegable -->
+        <div class="dropdown">
+            <button id="numeroButton" class="dropbtn">Seleccionar Numero</button>
+            <div id="numeroDropdown" style="display: none;">
+                <select id="numeroList">
+                    <option value="1">1</option>
+                    <option value="2">2</option>
+                    <option value="3">3</option>
+                    <option value="4">4</option>
+                    <option value="5">5</option>
+                    <option value="6">6</option>
+                </select>
+                 <!-- Nuevo botón para seleccionar imagen -->
+        <button id="imageButton">Seleccionar Imagen</button>
+        <input type="file" id="imagenInput" accept="image/*" style="display:none;">
+            </div>
+        </div>
+        
     </div>
-    <input type="file" id="fileInput" accept="image/*">
+    <imagen id="imagen" autoplay controls style="display:none"></imagen>
     
     <script src="cubo.js"></script>
 </body>

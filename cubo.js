@@ -15,13 +15,12 @@
 
 // ==================================================================
 // constantes globais
-
 const FUNDO = [0.0, 0.5, 0.5, 1.0];
 const EIXO_X = 0;
 const EIXO_Y = 1;
 const EIXO_Z = 2;
 
-//camera
+//camara
 const eye = vec3(1.25, 1.25, 1.25);
 const at = vec3(0, 0, 0);
 const up = vec3(0, 1, 0);
@@ -272,6 +271,53 @@ function crieCubo() {
   quad(5, 4, 0, 1);
 };
 
+
+// Obtén referencias a los elementos relevantes
+const numeroButton = document.getElementById('numeroButton');
+const numeroDropdown = document.getElementById('numeroDropdown');
+const colorList = document.getElementById('numeroList');
+const imageButton = document.getElementById('imageButton');
+const imagenInput = document.getElementById('imagenInput');
+
+// Agrega un evento de clic al botón "Seleccionar Numero"
+numeroButton.addEventListener('click', () => {
+  // Muestra u oculta el contenedor desplegable al hacer clic en el botón
+  numeroDropdown.style.display = numeroDropdown.style.display === 'none' ? 'block' : 'none';
+});
+
+// Agrega un evento de cambio al elemento de lista desplegable "Seleccionar Numero"
+colorList.addEventListener('change', () => {
+  // Obtén el valor seleccionado
+  const selectedNumero = colorList.value;
+
+  // Muestra el botón "Seleccionar Imagen" si se ha seleccionado un número
+  if (selectedNumero) {
+    imageButton.style.display = 'block';
+  }
+});
+
+// Agrega un evento de clic al botón "Seleccionar Imagen"
+imageButton.addEventListener('click', () => {
+  // Activa el clic en el input de tipo archivo para abrir el cuadro de diálogo
+  imagenInput.click();
+});
+
+class Cara {
+  constructor(numero) {
+    this.numero = numero;
+    this.texture = null;
+  }
+
+}
+
+// Luego, puedes crear instancias de la clase Cara para cada cara del cubo
+const cara1 = new Cara(1);
+const cara2 = new Cara(2);
+const cara3 = new Cara(3);
+const cara4 = new Cara(4);
+const cara5 = new Cara(5);
+const cara6 = new Cara(6);
+
 class Imagen {
   constructor() {
     this.texture = null;
@@ -298,19 +344,35 @@ class Imagen {
       reader.readAsDataURL(file);
     });
   }
-
   configureTextureFromImage(img) {
+    // Crear una textura WebGL
+    this.texture = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, this.texture);
+
+    // Configurar la textura con la imagen cargada
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img);
+
+    // Configurar parámetros de la textura para permitir mipmapping
+    gl.generateMipmap(gl.TEXTURE_2D);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+
+    // Asignar la textura al sampler en el shader
+    gl.activeTexture(gl.TEXTURE0); // Puedes usar otras unidades de textura según sea necesario
+    gl.bindTexture(gl.TEXTURE_2D, this.texture);
   }
+
 }
 
 // Uso de la clase Imagen
 const imagen = new Imagen();
-
 // Asigna un manejador de eventos al cambio en el input de tipo file
-const fileInput = document.getElementById('fileInput');
-fileInput.addEventListener('change', (event) => {
+// Agrega un evento de cambio al input de tipo archivo "Seleccionar Imagen"
+imagenInput.addEventListener('change', (event) => {
+  // Obtén la primera imagen seleccionada (si hay alguna)
   const file = event.target.files[0];
-  
+
+  // Puedes realizar las acciones necesarias con el archivo aquí
   if (file) {
     // Carga la imagen desde el archivo seleccionado
     imagen.cargarImagen(file)
