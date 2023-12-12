@@ -45,10 +45,12 @@ var gCtx = {
 // ==================================================================
 // chama a main quando terminar de carregar a janela
 window.onload = main;
-// arreglo para almacenar texturas
-var gTextures = [];
+ // arreglo para almacenar texturas
+ var gTextures = [];
 // variable para rastrear el color actual seleccionado
 var gCurrentColor = 'rojo';
+//const colores = ['rojo', 'verde', 'azul', 'amarillo', 'magenta', 'cian'];
+
 
 /**
  * programa principal.
@@ -73,11 +75,11 @@ function main() {
   }
 
   // Crear cubo con textura y numerar las caras
-  crieCubo();
-
-  // Inicializar la matriz de texturas (6 caras x N videos por cara)
-for (let i = 0; i < 6; i++) {
-  gTextures[i] = ['video_url_1', 'video_url_2', 'video_url_3', 'video_url_4', 'video_url_5', 'video_url_6'];
+  crieCubo();  
+ // Inicializar la matriz de texturas (6 caras x N videos por cara)
+ for (let i = 0; i < 6; i++) {
+  //gTextures[i] = ['video_url_1', 'video_url_2', 'video_url_3', 'video_url_4', 'video_url_5', 'video_url_6'];
+  gTextures[i] = null;
 }
 
   // Configuración de la interfaz
@@ -91,7 +93,7 @@ for (let i = 0; i < 6; i++) {
   // Configurar shaders y renderizar
   crieShaders();
   render();
-  //setupFileInput();
+  //cargarTexturas();
 }
 
 
@@ -116,14 +118,16 @@ function crieInterface() {
   document.getElementById("colorList").addEventListener('change', function() {
     gCurrentColor = this.value;
   
-    const indiceDeCara = obtenerIndiceDeCaraPorColor(gCurrentColor);
-    console.log('Índice de cara:', indiceDeCara);
+    const faceIndex = obtenerIndiceDeCaraPorColor(gCurrentColor);
+    console.log('Índice de cara:', faceIndex);
   
     // Obtén el elemento de video
     var video = document.getElementById("video");
   
     // Cargar el video correspondiente a la cara específica
-    loadTextureFromVideo(video, indiceDeCara);
+    console.log('Valor de faceIndex en crieInterface:', faceIndex);
+    loadVideoToTexture(videoUrls, currentFaceIndex);
+    configureTextureFromVideo(video, faceIndex);
   });
   // Nuevo botón para seleccionar video
   const videoInput = document.getElementById('videoInput');
@@ -176,7 +180,6 @@ function crieShaders() {
   for (let i = 0; i < 6; i++) {
     gShader[`uTextureMap${i}`] = gl.getUniformLocation(gShader.program, `uTextureMap${i}`);
   }
-
   //configureTexturaDaURL(URL);
   //configureTextureFromImage(img);
   //gl.uniform1i(gl.getUniformLocation(gShader.program, "uTextureMap"), 0);
@@ -185,7 +188,7 @@ function crieShaders() {
 
 // ==================================================================
 /**
- * Usa o shader para desenhar.
+ * Usa o shader para diseñar.
  * Assume que os dados já foram carregados e são estáticos.
  */
 function render() {
@@ -193,7 +196,7 @@ function render() {
   gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
   // modelo muda a cada frame da animacion 
-  if (!gCtx.pause) gCtx.theta[gCtx.axis] += 1.0;
+  if (!gCtx.pause) gCtx.theta[gCtx.axis] += 0.5;
 
   let rx = rotateX(gCtx.theta[EIXO_X]);
   let ry = rotateY(gCtx.theta[EIXO_Y]);
@@ -237,13 +240,11 @@ void main() {
 }
 `;
 
-
 var gFragmentShaderSrc = `#version 300 es
 precision highp float;
 
 in vec2 vTexCoord;
 uniform sampler2D uTextureMap;
-uniform int uNumeroCara;
 
 out vec4 outColor;
 
@@ -257,40 +258,14 @@ void main() {
         return;
     }
 
-    // Calcular la distancia al centro de la cara
-    float distanciaAlCentro = length(vTexCoord - vec2(0.5, 0.5));
-
-    // Ajustar el tamaño del número
-    float tamanoNumero = 0.2;
-
-    // Verificar si estamos en el centro de la cara y asignar el color del número
-    if (distanciaAlCentro < tamanoNumero) {
-        // Asignar un color sólido para cada número de cara
-        if (uNumeroCara == 1) {
-            outColor = vec4(1.0, 0.0, 0.0, 1.0); // Rojo
-        } else if (uNumeroCara == 2) {
-            outColor = vec4(0.0, 1.0, 0.0, 1.0); // Verde
-        } else if (uNumeroCara == 3) {
-            outColor = vec4(0.0, 0.0, 1.0, 1.0); // Azul
-        } else if (uNumeroCara == 4) {
-            outColor = vec4(1.0, 1.0, 0.0, 1.0); // Amarillo
-        } else if (uNumeroCara == 5) {
-            outColor = vec4(1.0, 0.0, 1.0, 1.0); // Magenta
-        } else if (uNumeroCara == 6) {
-            outColor = vec4(0.0, 1.0, 1.0, 1.0); // Cian
-        }
-    } else {
-        // Si no estamos en el centro de la cara, establecer el color al de la textura
-        outColor = texColor;
-    }
+    // Asignar el color de la textura
+    outColor = texColor;
 }
 `;
 
-
-
-// posições dos 8 vértices de um cubo de lado 1
-// centrado na origem
-var gaPosicoes = [];
+// posiciones de los 8 vértices de un cubo de lado 1
+// centrado en el origen
+var gaPosicoes  = []; 
 var vCubo = [
   vec3(-0.5, -0.5, 0.5),
   vec3(-0.5, 0.5, 0.5),
@@ -303,11 +278,7 @@ var vCubo = [
 ];
 
 // textura: coordenadas (s, t) entre 0 e 1.
-//const URL = "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a5/Flower_poster_2.jpg/1200px-Flower_poster_2.jpg"
-//const URL = "https://www.canalmascotas.com/wp-content/uploads/files/article/e/etapas-de-vida-del-primer-mes-del-cachorro_5wb3s.jpg"
-//const URL = "https://upload.wikimedia.org/wikipedia/commons/6/64/Bichon_Frise_600.jpg"
-
-const URL = "video.jpeg"
+//const URL = "lluvia.mp4"
 var gaTexCoords = [];
 // valores escolhidos para recortar a parte desejada
 var vTextura = [      
@@ -317,6 +288,7 @@ var vTextura = [
   vec2(0.95, 0.05),
   
 ];
+
 // Coordenadas de textura para enumerar las esquinas
 var vNumeros = [
   vec2(0.0, 0.0),  // Esquina inferior izquierda
@@ -349,7 +321,6 @@ function numerarCara(faceIndex) {
     console.error("Índice de cara fuera de rango:", faceIndex);
   }
 }
-
 
 /**
  * Función lineal personalizada para interpolar entre dos valores.
@@ -430,82 +401,83 @@ function crieCubo() {
 
   // Llenar gCaras con las caras del cubo
   for (let i = 0; i < 6; i++) {
-    const cara = {
-      puntos: [i * 4, i * 4 + 1, i * 4 + 2, i * 4 + 3],
-      indice: i,
-    };
-    gCaras.push(cara);
     numerarCara(i);
-  }
 }
 
+function numerarCara(faceIndex) {
+    const baseIndex = faceIndex * 4;
 
-// Llama a esta función al cargar tu script
-function setupFileInput() {
-  var fileInput = document.getElementById('fileInput');
+    // Configurar el número de cara para el shader
+    setNumeroCara(faceIndex + 1);
 
-  // Verificar si el elemento existe antes de agregar el evento
-  if (fileInput) {
-    fileInput.addEventListener('change', handleFileSelect);
-  } else {
-    console.error("Elemento 'fileInput' no encontrado en el documento.");
-  }
+    // Llamar a la función quad una vez para cada cara
+    quad(baseIndex, baseIndex + 1, baseIndex + 2, baseIndex + 3);
+}
 }
 
 // Modifica la función configureTextureFromVideo
 function configureTextureFromVideo(video, faceIndex) {
   // Verificar que el índice de cara sea válido
   if (faceIndex >= 0 && faceIndex < gTextures.length) {
-    // Crear una textura WebGL
-    var texture = gl.createTexture();
-    gl.bindTexture(gl.TEXTURE_2D, texture);
+      // Crear una textura WebGL
+      var texture = gl.createTexture();
+      gl.bindTexture(gl.TEXTURE_2D, texture);
 
-    // Configurar la textura con el video
-    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, video);
+      // Configurar la textura con el video
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, video);
 
-    // Configurar parámetros de la textura para permitir mipmapping
-    gl.generateMipmap(gl.TEXTURE_2D);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+      // Verificar si las dimensiones del video son potencias de 2
+      if (!isPowerOf2(video.width) || !isPowerOf2(video.height)) {
+          // Si no son potencias de 2, configurar la textura sin mipmapping
+          gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+      } else {
+          // Configurar parámetros de la textura para permitir mipmapping
+          gl.generateMipmap(gl.TEXTURE_2D);
+          gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
+      }
 
-    // Asignar la textura al sampler en el shader
-    gl.activeTexture(gl.TEXTURE0 + faceIndex);  // Utiliza unidades de textura diferentes para cada cara
-    gl.bindTexture(gl.TEXTURE_2D, texture);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
 
-    // Asegúrate de que render() se llama después de cargar la textura
-    render();
+      // Asignar la textura al sampler en el shader
+      gl.activeTexture(gl.TEXTURE0 + faceIndex);
+      gl.uniform1i(gShader[`uTextureMap${faceIndex}`], faceIndex);
+
+      // Asegúrate de que render() se llame después de cargar la textura
+      render();
   } else {
-    console.error("Índice de cara fuera de rango:", faceIndex);
+      console.error("Índice de cara fuera de rango:", faceIndex);
   }
 }
+// Función para verificar si un número es potencia de 2
+function isPowerOf2(value) {
+  return (value & (value - 1)) === 0;
+}
+
 
 // Función para cargar el video en el reproductor
-function loadVideo(videoUrl) {
-  const video = document.getElementById('video');
-  
-  // Configurar el source del elemento de video
-  video.src = videoUrl;
-  
-  // Asignar el video al elemento de video
+function loadVideoToTexture(videoUrls, faceIndex) {
+  const video = document.createElement('video');
+  video.crossOrigin = 'anonymous';
+  video.src = videoUrls;
+
+  // Cuando el video está cargado, actualizar la textura
+  video.onloadedmetadata = function() {
+      console.log("Video cargado, duración: " + video.duration + " segundos");
+      configureTextureFromVideo(video, faceIndex);
+
+      // Llama a render solo cuando el video está listo
+      if (videoReady) {
+          render();
+      }
+  };
+
+  // Al cargar suficientes datos, intentar reproducir el video
+  video.addEventListener('canplaythrough', function() {
+      video.play();
+  });
+
   video.load();
-  
-  // Reproducir el video
-  video.play();
 }
-
-// Manejar la selección de video
-function handleVideoSelect() {
-  const selectedVideo = videoInput.files[0];
-  if (selectedVideo) {
-    const fileReader = new FileReader();
-    fileReader.onload = function (event) {
-      const videoUrl = event.target.result;
-      loadTextureFromVideo(videoUrl, obtenerIndiceDeCaraPorColor(gCurrentColor));
-    };
-    fileReader.readAsDataURL(selectedVideo);
-  }
-}
-
 
 // Obtener referencias a elementos HTML
 const colorButton = document.getElementById('colorButton');
@@ -557,72 +529,8 @@ if (videoButton && fileInput && videoInput) {
 } else {
   console.error("Elemento 'videoButton', 'fileInput' o 'videoInput' no encontrado en el documento.");
 }
-// Definir un mapa de colores a arreglos de URLs de videos
-const colorVideoMap = {
-  rojo: ['url_rojo_1.mp4', 'url_rojo_2.mp4', 'url_rojo_3.mp4', 'url_rojo_4.mp4', 'url_rojo_5.mp4', 'url_rojo_6.mp4'],
-  verde: ['url_verde_1.mp4', 'url_verde_2.mp4', 'url_verde_3.mp4', 'url_verde_4.mp4', 'url_verde_5.mp4', 'url_verde_6.mp4'],
-  azul: ['url_azul_1.mp4', 'url_azul_2.mp4', 'url_azul_3.mp4', 'url_azul_4.mp4', 'url_azul_5.mp4', 'url_azul_6.mp4'],
-  amarillo: ['url_amarillo_1.mp4', 'url_amarillo_2.mp4', 'url_amarillo_3.mp4', 'url_amarillo_4.mp4', 'url_amarillo_5.mp4', 'url_amarillo_6.mp4'],
-  magenta: ['url_magenta_1.mp4', 'url_magenta_2.mp4', 'url_magenta_3.mp4', 'url_magenta_4.mp4', 'url_magenta_5.mp4', 'url_magenta_6.mp4'],
-  cian: ['url_cian_1.mp4', 'url_cian_2.mp4', 'url_cian_3.mp4', 'url_cian_4.mp4', 'url_cian_5.mp4', 'url_cian_6.mp4'],
-};
 
 
-// Maneja la selección de color
-colorList.addEventListener('change', () => {
-  // Obtener el color seleccionado
-  const selectedColor = colorList.value;
-  // Obtener la URL del video asociado al color
-  const videoUrl = colorVideoMap[selectedColor];
-  // Mostrar el botón de seleccionar video
-  videoButton.style.display = 'block';
-  // Cargar el video en el reproductor
-  loadVideo(videoUrl);
-});
-
-// Función para cargar la textura desde un video
-function loadTextureFromVideo(videoUrl, faceIndex) {
-  // Verificar que el índice de cara sea válido
-  if (faceIndex >= 0 && faceIndex < gTextures.length) {
-    // Crear una textura WebGL
-    var texture = gl.createTexture();
-    gl.bindTexture(gl.TEXTURE_2D, texture);
-
-    // Crear un elemento de video
-    var video = document.createElement('video');
-    video.crossOrigin = 'anonymous';  // Si los videos están en otro dominio
-
-    // Configurar el source del elemento de video
-    video.src = videoUrl;
-    video.load(); // Cargar el video
-
-    // Esperar a que el video esté cargado para configurar la textura
-    video.onloadeddata = function() {
-      // Configurar la textura con el video
-      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, video);
-      gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, true);
-
-      // Configurar parámetros de la textura para permitir mipmapping
-      gl.generateMipmap(gl.TEXTURE_2D);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-
-      // Asignar la textura al sampler en el shader
-      gl.activeTexture(gl.TEXTURE0 + faceIndex);  // Utiliza unidades de textura diferentes para cada cara
-      gl.bindTexture(gl.TEXTURE_2D, texture);
-
-      // Asegúrate de que render() se llame después de cargar la textura
-      render();
-    };
-    // Reproducir el video
-    video.src = videoUrl;
-    video.load();
-    video.play();
-
-  } else {
-    console.error("Índice de cara fuera de rango:", faceIndex);
-  }
-}
 
 // Función para obtener el índice de cara por color
 function obtenerIndiceDeCaraPorColor(color) {
@@ -630,4 +538,104 @@ function obtenerIndiceDeCaraPorColor(color) {
   const indice = colores.indexOf(color);
   return indice !== -1 ? indice : 0;
 }
+
+let cv;
+let isOpencvReady = false;
+
+function onOpenCvReady() {
+  cv = cv || window.cv;
+  isOpencvReady = true;
+  cargarTexturas();
+}
+
+// Función para cargar texturas
+// Definir las URL de los videos
+const videoUrls = [
+  "video_url_rojo.mp4",
+  "video_url_verde.mp4",
+  "video_url_azul.mp4",
+  "video_url_amarillo.mp4",
+  "video_url_magenta.mp4",
+  "video_url_cian.mp4",
+];
+// Asignar videos a cada cara
+const videos = [];
+for (let i = 0; i < videoUrls.length; i++) {
+    const video = document.createElement('video');
+    video.src = videoUrls[i];
+    video.loop = true;
+    video.muted = true; // Asegúrate de que los videos estén silenciados si es necesario
+    video.play();
+    videos.push(video);
+}
+
+// En tu bucle de asignación de texturas
+for (let i = 0; i < gCaras.length; i++) {
+  const cara = gCaras[i];
+  for (let j = 0; j < cara.puntos.length; j++) {
+      const indiceVertice = cara.puntos[j];
+      
+      // Obtener la posición del vértice
+      const vertice = gaPosicoes[indiceVertice];
+      
+      // Calcular las coordenadas s y t normalizadas
+      const s = (vertice[0] - vTextura[0][0]) / (vTextura[2][0] - vTextura[0][0]);
+      const t = (vertice[1] - vTextura[0][1]) / (vTextura[1][1] - vTextura[0][1]);
+
+      // Asignar las coordenadas de textura al vértice
+      gaTexCoords[indiceVertice] = vec2(s, t);
+  }
+}
+// Maneja la selección de color
+colorList.addEventListener('change', () => {
+  // Obtener el color seleccionado
+  const selectedColor = colorList.value;
+  // Obtener el índice del color seleccionado
+const colorIndex = obtenerIndiceDeCaraPorColor(selectedColor);
+// Obtener la URL del video asociado al color utilizando el índice
+const videoUrl = videoUrls[colorIndex];
+// Mostrar el botón de seleccionar video
+videoButton.style.display = 'block';
+  // Cargar el video en el reproductor
+  loadVideo(videoUrls);
+});
+
+let videoReady = false;
+let currentFaceIndex = 0;
+
+loadVideoToTexture(videoUrls[currentFaceIndex], currentFaceIndex);
+
+// Modifica la función handleVideoSelect para cargar el video usando loadVideoToTexture
+function handleVideoSelect() {
+  console.log("Evento de cambio activado");
+  const selectedVideo = videoInput.files[0];
+  if (selectedVideo) {
+    const fileReader = new FileReader();
+    fileReader.onload = function (event) {
+      const videoUrl = event.target.result; // Cambiado a videoUrl
+
+      // Obtén el índice de la cara actualmente seleccionada
+      const currentColor = colorList.value;
+      const currentFaceIndex = obtenerIndiceDeCaraPorColor(currentColor);
+
+      // Cargar el video en el contexto WebGL y actualizar la textura
+      loadVideoToTexture(videoUrl, currentFaceIndex); // Cambiado a videoUrl
+    };
+    fileReader.readAsDataURL(selectedVideo);
+  }
+}
+function animate() {
+  requestAnimationFrame(animate);
+
+  // Actualizar la textura en cada frame
+  for (let i = 0; i < caras.length; i++) {
+      if (videos[i].readyState === videos[i].HAVE_ENOUGH_DATA) {
+          caras[i].material.map.needsUpdate = true;
+      }
+  }
+
+  // Renderizar tu escena
+  renderer.render(scene, camera);
+}
+
 
