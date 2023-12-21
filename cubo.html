@@ -23,6 +23,7 @@
 
         <div class="dropdown">
             <button id="colorButton" class="dropbtn">Seleccionar Color</button>
+            <button id="blancoYNegroButton">Blanco y Negro</button>
             <div id="colorDropdown" style="display: none;">
                 <select id="colorList">
                     <option value="rojo">Rojo</option>
@@ -38,9 +39,10 @@
         </div>
     </div>
 
-    <video id="video" autoplay controls style="display:none">
+    <video id="video" autoplay controls style="display:none" autoplay muted playsinline>
         Tu navegador no soporta la etiqueta de video.
     </video>
+    
 
     <script src="cubo.js"></script>
 </body>

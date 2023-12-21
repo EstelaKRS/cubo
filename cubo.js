@@ -64,6 +64,8 @@ function main() {
   if (!gl) {
     console.error("¡Vaya! No se encontró WebGL 2.0 aquí :-(");
     return;
+  } else {
+    console.log("Contexto WebGL 2.0 obtenido correctamente.");
   }
 
   console.log("Canvas: ", gCanvas.width, gCanvas.height);
@@ -76,45 +78,50 @@ function main() {
   }
 
   // Crear cubo con textura y numerar las caras
-  crieCubo();  
- // Inicializar la matriz de texturas (6 caras x N videos por cara)
- for (let i = 0; i < 6; i++) {
-  //gTextures[i] = ['video_url_1', 'video_url_2', 'video_url_3', 'video_url_4', 'video_url_5', 'video_url_6'];
-  gTextures[i] = videos[i];
-}
-
-  // Configuración de la interfaz
-  crieInterface();
+  crieCubo();
 
   // Inicializaciones realizadas una vez
   gl.viewport(0, 0, gCanvas.width, gCanvas.height);
   gl.clearColor(FUNDO[0], FUNDO[1], FUNDO[2], FUNDO[3]);
   gl.enable(gl.DEPTH_TEST);
 
-  // Configurar shaders y renderizar
-  
+  // Configurar shaders
   crieShaders();
-  //render();
-  //cargarTexturas();
-  loadAllVideos(videoUrls)
-  .then((videos) => {
-      // Todos los videos se han cargado correctamente
-      console.log('Todos los videos se han cargado correctamente:', videos);
-      // Asignar videos a cada cara
-      for (let i = 0; i < 6; i++) {
-          //gTextures[i] = videos[i];
-          gTextures[i] = null;
-      }
-      // Renderizar tu cubo con los videos
-      render();
-  })
-  .catch(() => {
-      // Al menos un video no se cargó correctamente
-      console.error('Error al cargar los videos.');
-  });
-  // Cargar videos solo después de configurar la interfaz
 
+  // Obtener el elemento de video
+  const video = document.getElementById("video");
+
+  // Manejar el evento 'loadedmetadata' del video
+  video.addEventListener("loadedmetadata", function () {
+    console.log("Video cargado, duración: " + video.duration + " segundos");
+
+    // Crear la interfaz después de cargar completamente el video
+    crieInterface();
+
+    // Configurar las texturas a partir del video
+    configureTextureFromVideo(video, 0); // Puedes ajustar el índice según tus necesidades
+    setupVideos(videoUrls, gl);
+    // Cargar videos solo después de configurar la interfaz
+    loadAllVideos(videoUrls)
+      .then((videos) => {
+        // Todos los videos se han cargado correctamente
+        console.log('Todos los videos se han cargado correctamente:', videos);
+        // Asignar videos a cada cara
+        for (let i = 0; i < 6; i++) {
+          // gTextures[i] = videos[i];
+          gTextures[i] = null;
+        }
+        // Renderizar tu cubo con los videos
+        render();
+      })
+      .catch(() => {
+        // Al menos un video no se cargó correctamente
+        console.error('Error al cargar los videos.');
+      });
+  });
+  setupVideos(videoUrls, gl);
 }
+
 
 
 // ==================================================================
@@ -167,7 +174,52 @@ function crieInterface() {
   // Nuevo botón para seleccionar video
   const videoInput = document.getElementById('videoInput');
   videoInput.addEventListener('change', handleVideoSelect);
-  
+
+  // Agregar evento de clic al botón "Blanco y Negro"
+  document.getElementById("blancoYNegroButton").onclick = function () {
+    // Obtener el elemento de video
+    const video = document.getElementById("video");
+
+    // Verificar si el video ha cargado correctamente
+    if (video.readyState < video.HAVE_METADATA) {
+      console.error("Error: El video no ha cargado completamente.");
+      return;
+    }
+
+    // Crear un elemento canvas para manipulaciones de OpenCV
+    const canvas = document.createElement("canvas");
+    const canvasContext = canvas.getContext("2d");
+
+    // Establecer el ancho y alto del canvas igual al video
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+
+    // Dibujar el fotograma actual del video en el canvas
+    canvasContext.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+    // Obtener los datos de la imagen desde el canvas
+    const imageData = canvasContext.getImageData(0, 0, canvas.width, canvas.height);
+
+    // Verificar si el imageData tiene datos antes de continuar
+    if (!imageData.data || !imageData.data.length) {
+      console.error("Error: No se pudo obtener imageData.");
+      return;
+    }
+
+    // Convertir la imagen a blanco y negro utilizando OpenCV.js
+    const src = new cv.Mat(canvas.height, canvas.width, cv.CV_8UC4);
+    cv.imshow(src, cv.matFromImageData(imageData));
+
+    const dst = new cv.Mat();
+    cv.cvtColor(src, dst, cv.COLOR_RGBA2GRAY);
+
+    // Actualizar la imagen en el canvas
+    cv.imshow(canvas, dst);
+
+    // Liberar memoria
+    src.delete();
+    dst.delete();
+  };
 }  
 
 // ==================================================================
@@ -191,14 +243,12 @@ function crieShaders() {
   // resolve os uniforms
   gShader.uModelView = gl.getUniformLocation(gShader.program, "uModelView");
   gShader.uPerspective = gl.getUniformLocation(gShader.program, "uPerspective");
+  gShader.uNumeroCara = gl.getUniformLocation(gShader.program, "uNumeroCara");
   // calcula a matriz de transformação perpectiva (fovy, aspect, near, far)
   // que é feita apenas 1 vez
   gCtx.perspectiva = perspective(FOVY, ASPECT, NEAR, FAR);
   gl.uniformMatrix4fv(gShader.uPerspective, false, flatten(gCtx.perspectiva));
   
-  // Agregar esta línea junto con otros uniformes en la función crieShaders
-  gShader.uNumeroCara = gl.getUniformLocation(gShader.program, "uNumeroCara");
-
   // calcula a matriz de transformação da camera, apenas 1 vez
   gCtx.vista = lookAt(eye, at, up);
 
@@ -215,10 +265,12 @@ function crieShaders() {
   for (let i = 0; i < 6; i++) {
     gShader[`uTextureMap${i}`] = gl.getUniformLocation(gShader.program, `uTextureMap${i}`);
   }
-  //configureTexturaDaURL(URL);
-  //configureTextureFromImage(img);
-  //gl.uniform1i(gl.getUniformLocation(gShader.program, "uTextureMap"), 0);
-
+  // Obtener la ubicación de los atributos
+  gShader.aVertexPosition = gl.getAttribLocation(gShader.program, 'aPosition');
+  if (gShader.aVertexPosition === -1) {
+    console.error('No se pudo obtener la ubicación del atributo aVertexPosition');
+  }
+ 
 };
 
 // ==================================================================
@@ -449,39 +501,8 @@ function numerarCara(faceIndex) {
 }
 }
 
-// Modifica la función configureTextureFromVideo
-function configureTextureFromVideo(video, faceIndex) {
-  // Verificar que el índice de cara sea válido
-  if (faceIndex >= 0 && faceIndex < gTextures.length) {
-      // Crear una textura WebGL
-      var texture = gl.createTexture();
-      gl.bindTexture(gl.TEXTURE_2D, texture);
 
-      // Configurar la textura con el video
-      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, video);
 
-      // Verificar si las dimensiones del video son potencias de 2
-      if (!isPowerOf2(video.width) || !isPowerOf2(video.height)) {
-          // Si no son potencias de 2, configurar la textura sin mipmapping
-          gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-      } else {
-          // Configurar parámetros de la textura para permitir mipmapping
-          gl.generateMipmap(gl.TEXTURE_2D);
-          gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
-      }
-
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-
-      // Asignar la textura al sampler en el shader
-      gl.activeTexture(gl.TEXTURE0 + faceIndex);
-      gl.uniform1i(gShader[`uTextureMap${faceIndex}`], faceIndex);
-
-      // Asegúrate de que render() se llame después de cargar la textura
-      render();
-  } else {
-      console.error("Índice de cara fuera de rango:", faceIndex);
-  }
-}
 // Función para verificar si un número es potencia de 2
 function isPowerOf2(value) {
   return (value & (value - 1)) === 0;
@@ -492,7 +513,7 @@ function loadVideoToTexture(videoUrl, texture) {
   // Crear un video por cada URL
   const videos = videoUrls.map(videoUrls => {
     const video = document.createElement('video');
-    video.crossOrigin = 'anonymous';
+    //video.crossOrigin = 'anonymous';
     video.src = videoUrl;
     video.loop = true;
     video.muted = true;
@@ -503,6 +524,7 @@ function loadVideoToTexture(videoUrl, texture) {
   // Cuando el primer video está cargado, actualizar la textura
   videos[0].onloadedmetadata = function() {
     console.log("Video cargado, duración: " + videos[0].duration + " segundos");
+   
     configureTextureFromVideo(videos[0], texture);
 
     // Llama a render solo cuando el video está listo
@@ -527,7 +549,7 @@ function loadAllVideos(videoUrls) {
     // Creamos una promesa para cargar cada video
     const videoPromise = new Promise((resolve, reject) => {
       const video = document.createElement('video');
-      video.crossOrigin = 'anonymous';
+      //video.crossOrigin = 'anonymous';
       video.src = videoUrl;
 
       video.onerror = function(error) {
@@ -643,68 +665,128 @@ const videoUrls = [
 
 ];
 // Asignar videos a cada cara
-// Asignar videos a cada cara
 let videoReady = false;
 let currentFaceIndex = 0;
 const videos = [];
 var gTextures = Array(6).fill(null);
-//const gTextures = [];
+var faceIndex = 0; // O cualquier otro valor que desees
 
-for (let i = 0; i < videoUrls.length; i++) {
+//const gTextures = [];
+// Crear un array para almacenar las texturas
+//Texturas para cada cara
+function setupVideos(videoUrls, glContext) {
+  for (let i = 0; i < videoUrls.length; i++) {
     const video = document.createElement('video');
     video.src = videoUrls[i];
     video.loop = true;
     video.muted = true;
-
-    // Asignar cada video a la textura correspondiente
-    const texture = new THREE.VideoTexture(video);
-    gTextures[i] = texture;
-
-    // Asignar la textura al material de la cara
-    gCaras[i].material.map = texture;
-
     videos.push(video);
-}
-// Al cargar suficientes datos, intentar reproducir el video
-videos[currentFaceIndex].addEventListener('loadeddata', function () {
-  videos[currentFaceIndex].play();
-  videoReady = true; // Marcar el video como listo
 
-  // Llama a render solo cuando el video está listo
-  if (videoReady) {
-      render();
+    // Configurar textura para la cara correspondiente
+    if (glContext) {
+      configureTextureFromVideo(video, i, glContext);  // Añadí glContext como parámetro
+    } else {
+      console.error("¡Vaya! Contexto WebGL no definido en setupVideos.");
+    }
   }
-});
 
-// Crear un array para almacenar las texturas
-//Texturas para cada cara
-// Verifica cómo estás asignando las texturas a las caras del cubo
-for (let i = 0; i < gCaras.length; i++) {
-  const cara = gCaras[i];
-  // Crear textura vacía y asignarla a la cara
-  const texture = new THREE.Texture();
-  cara.material.map = texture;
-  gTextures.push(texture);
+  // Iniciar la reproducción del primer video
+  videos[currentFaceIndex].play();
+  videoReady = true;
 }
 
 
 
+
+
+// Llamar a esta función para cambiar el video en la textura actual
+function changeVideo(index) {
+  if (index >= 0 && index < videos.length) {
+    videos[currentFaceIndex].pause();
+    currentFaceIndex = index;
+    videos[currentFaceIndex].play();
+
+    // Configurar textura para la cara correspondiente
+    configureTextureFromVideo(videos[currentFaceIndex], currentFaceIndex);
+  } else {
+    console.error("Índice de video fuera de rango:", index);
+  }
+}
+// Inicializar la matriz de texturas (6 caras x N videos por cara)
+for (let i = 0; i < 6; i++) {
+  if (gl) {
+    const texture = gl.createTexture();
+    gTextures.push(texture);
+  } else {
+    console.error('Error: el contexto WebGL no está definido.');
+  }
+}
+
+// Modifica la función configureTextureFromVideo
+function configureTextureFromVideo(video, faceIndex,glContext) {
+  // Verificar que el índice de cara sea válido
+  if (faceIndex >= 0 && faceIndex < gTextures.length && glContext) {
+    // Enlazar el programa de shaders antes de configurar la textura
+    glContext.useProgram(gShader.program);
+
+    // Configurar la textura con el video
+    gl.bindTexture(gl.TEXTURE_2D, gTextures[faceIndex]);
+    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);  // Añadir esta línea
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, video);
+
+    // Configurar parámetros de la textura
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+
+    // Asignar la textura al sampler en el shader
+    gl.activeTexture(gl.TEXTURE0 + faceIndex);
+    gl.uniform1i(gShader[`uTextureMap${faceIndex}`], faceIndex);
+
+    // Asegúrate de que render() se llame después de cargar la textura
+    render();
+  } else {
+    console.error("Índice de cara fuera de rango o contexto WebGL no definido:", faceIndex);
+  }
+}
+
+
+
+
+// Llamada inicial para configurar videos
+setupVideos(videoUrls);
 loadVideoToTexture(videoUrls[currentFaceIndex], currentFaceIndex);
 
+// Manejar la selección de video
+videoButton.addEventListener('click', () => {
+  videoInput.click();
+});
+
+// Manejar la selección de video desde el campo de entrada
+videoInput.addEventListener('change', handleVideoSelect);
 // Modifica la función handleVideoSelect para cargar el video usando loadVideoToTexture
 function handleVideoSelect() {
-  console.log("Evento de cambio activado");
   const selectedVideo = videoInput.files[0];
   if (selectedVideo) {
-      const videoUrls = URL.createObjectURL(selectedVideo);
+    const videoUrl = URL.createObjectURL(selectedVideo);
 
-      // Obtén el índice de la cara actualmente seleccionada
-      const currentColor = colorList.value;
-      const currentFaceIndex = obtenerIndiceDeCaraPorColor(currentColor);
+    // Obtener el índice de la cara actualmente seleccionada
+    const currentColor = colorList.value;
+    const currentFaceIndex = obtenerIndiceDeCaraPorColor(currentColor);
 
-      // Cargar el video en el contexto WebGL y actualizar la textura
-      loadVideoToTexture([videoUrls], currentFaceIndex);
+    // Cargar el video en el contexto WebGL y actualizar la textura
+    configureTextureFromVideo(createVideoElement(videoUrl), currentFaceIndex);
   }
+}
+// Función para crear un elemento de video
+function createVideoElement(videoUrl) {
+  const video = document.createElement('video');
+  video.src = videoUrl;
+  video.loop = true;
+  video.muted = true;
+  //video.crossOrigin = 'anonymous';
+  return video;
 }
 
 function animate() {
@@ -721,3 +803,6 @@ function animate() {
   // Renderizar tu escena
   renderer.render(scene, camera);
 }
+document.addEventListener('DOMContentLoaded', function() {
+  main();
+});
