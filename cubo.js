@@ -56,8 +56,15 @@ var gCurrentColor = 'rojo';
 /**
  * programa principal.
  */
+function obtenerContextoWebGL() {
+  const canvas = document.getElementById("glcanvas");
+  const gl = canvas.getContext("webgl2");
+  return gl;
+}
+
 function main() {
   // Configuración del ambiente WebGL
+  const glContext = obtenerContextoWebGL();
   gCanvas = document.getElementById("glcanvas");
   gl = gCanvas.getContext('webgl2');
   
@@ -100,7 +107,7 @@ function main() {
 
     // Configurar las texturas a partir del video
     configureTextureFromVideo(video, 0); // Puedes ajustar el índice según tus necesidades
-    setupVideos(videoUrls, gl);
+    //setupVideos(videoUrls, gl);
     // Cargar videos solo después de configurar la interfaz
     loadAllVideos(videoUrls)
       .then((videos) => {
@@ -119,7 +126,7 @@ function main() {
         console.error('Error al cargar los videos.');
       });
   });
-  setupVideos(videoUrls, gl);
+  setupVideos(videoUrls, glContext);
 }
 
 
@@ -532,10 +539,6 @@ function loadVideoToTexture(videoUrl, texture) {
       render();
     }
   };
-
-  // Al cargar suficientes datos, intentar reproducir el primer video
-  // Al cargar suficientes datos, intentar reproducir el video
-
 }
 
 function loadAllVideos(videoUrls) {
@@ -549,31 +552,36 @@ function loadAllVideos(videoUrls) {
     // Creamos una promesa para cargar cada video
     const videoPromise = new Promise((resolve, reject) => {
       const video = document.createElement('video');
-      //video.crossOrigin = 'anonymous';
-      video.src = videoUrl;
 
-      video.onerror = function(error) {
-        console.error('Error al cargar el video:', error);
-        reject(new Error(`Error al cargar el video: ${videoUrl}`)); // Rechazamos la promesa con un error
+      // Manejar el evento 'loadedmetadata' para saber la duración del video
+      video.onloadedmetadata = function() {
+        console.log(`Video cargado: ${videoUrl}, duración: ${video.duration} segundos`);
+        resolve(video);
       };
 
+      // Manejar el evento 'error' para manejar errores de carga
+      video.onerror = function(error) {
+        console.error(`Error al cargar el video ${videoUrl}:`, error);
+        reject(new Error(`Error al cargar el video: ${videoUrl}`));
+      };
+
+      // Intentamos cargar y reproducir el video directamente después de cargarlo
+      video.src = videoUrl;
       video.load();
-      // Intentar reproducir el video directamente después de cargarlo
-   video.play().then(() => {
-    console.log(`Video cargado: ${videoUrl}, duración: ${video.duration} segundos`);
-    resolve(video);
- }).catch(error => {
-    console.error('Error al reproducir el video:', error);
- });
+      video.play().catch(error => {
+        console.error(`Error al reproducir el video ${videoUrl}:`, error);
+        reject(new Error(`Error al reproducir el video: ${videoUrl}`));
+      });
     });
 
     // Agregamos la promesa al array
     videoPromises.push(videoPromise);
   }
-
   // Retornamos una promesa que se resuelve cuando todos los videos se han cargado
   return Promise.all(videoPromises);
 }
+
+
 
 function playVideo() {
   if (video.duration > 0) {
@@ -675,6 +683,8 @@ var faceIndex = 0; // O cualquier otro valor que desees
 // Crear un array para almacenar las texturas
 //Texturas para cada cara
 function setupVideos(videoUrls, glContext) {
+  console.log("Entrando en setupVideos. Contexto WebGL:", glContext);
+
   for (let i = 0; i < videoUrls.length; i++) {
     const video = document.createElement('video');
     video.src = videoUrls[i];
@@ -684,7 +694,8 @@ function setupVideos(videoUrls, glContext) {
 
     // Configurar textura para la cara correspondiente
     if (glContext) {
-      configureTextureFromVideo(video, i, glContext);  // Añadí glContext como parámetro
+      console.log("Configurando textura para el video", i);
+      configureTextureFromVideo(video, i, glContext);
     } else {
       console.error("¡Vaya! Contexto WebGL no definido en setupVideos.");
     }
@@ -694,9 +705,6 @@ function setupVideos(videoUrls, glContext) {
   videos[currentFaceIndex].play();
   videoReady = true;
 }
-
-
-
 
 
 // Llamar a esta función para cambiar el video en la textura actual
@@ -724,6 +732,10 @@ for (let i = 0; i < 6; i++) {
 
 // Modifica la función configureTextureFromVideo
 function configureTextureFromVideo(video, faceIndex,glContext) {
+  if (!glContext) {
+    console.error("¡Vaya! No se encontró el contexto WebGL 2.0 aquí :-(");
+    return;
+  }
   // Verificar que el índice de cara sea válido
   if (faceIndex >= 0 && faceIndex < gTextures.length && glContext) {
     // Enlazar el programa de shaders antes de configurar la textura
@@ -747,15 +759,13 @@ function configureTextureFromVideo(video, faceIndex,glContext) {
     // Asegúrate de que render() se llame después de cargar la textura
     render();
   } else {
+    console.log("Índice de cara que se intenta configurar:", faceIndex);
     console.error("Índice de cara fuera de rango o contexto WebGL no definido:", faceIndex);
   }
 }
 
-
-
-
 // Llamada inicial para configurar videos
-setupVideos(videoUrls);
+//setupVideos(videoUrls, glContext);
 loadVideoToTexture(videoUrls[currentFaceIndex], currentFaceIndex);
 
 // Manejar la selección de video
@@ -774,6 +784,7 @@ function handleVideoSelect() {
     // Obtener el índice de la cara actualmente seleccionada
     const currentColor = colorList.value;
     const currentFaceIndex = obtenerIndiceDeCaraPorColor(currentColor);
+    console.log("Índice de cara actual:", currentFaceIndex);
 
     // Cargar el video en el contexto WebGL y actualizar la textura
     configureTextureFromVideo(createVideoElement(videoUrl), currentFaceIndex);

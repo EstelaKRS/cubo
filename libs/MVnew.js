@@ -859,8 +859,8 @@ function mix( u, v, s )
 
 
 function flatten( v )
-{
-
+{ 
+ 
     if(isVector(v)) {
       var floats = new Float32Array(v.length)
       for(var i =0; i<v.length; i++) floats[i] = v[i];
