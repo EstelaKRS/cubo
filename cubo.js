@@ -772,6 +772,16 @@ loadVideoToTexture(videoUrls[currentFaceIndex], currentFaceIndex);
 videoButton.addEventListener('click', () => {
   videoInput.click();
 });
+const playButton = document.getElementById('playButton');
+//let videos = [];  // Almacena todas las instancias de video
+
+// Añade un evento al botón de reproducción
+playButton.addEventListener('click', handlePlayButtonClick);
+
+function handlePlayButtonClick() {
+  // Reproduce todos los videos almacenados
+  videos.forEach(video => video.play());
+}
 
 // Manejar la selección de video desde el campo de entrada
 videoInput.addEventListener('change', handleVideoSelect);
@@ -784,10 +794,13 @@ function handleVideoSelect() {
     // Obtener el índice de la cara actualmente seleccionada
     const currentColor = colorList.value;
     const currentFaceIndex = obtenerIndiceDeCaraPorColor(currentColor);
-    console.log("Índice de cara actual:", currentFaceIndex);
 
     // Cargar el video en el contexto WebGL y actualizar la textura
-    configureTextureFromVideo(createVideoElement(videoUrl), currentFaceIndex);
+    const videoElement = createVideoElement(videoUrl);
+    configureTextureFromVideo(videoElement, currentFaceIndex);
+
+    // Almacena la instancia de video
+    videos.push(videoElement);
   }
 }
 // Función para crear un elemento de video
@@ -817,3 +830,4 @@ function animate() {
 document.addEventListener('DOMContentLoaded', function() {
   main();
 });
+
