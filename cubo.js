@@ -97,22 +97,13 @@ function main() {
   //render();
   //cargarTexturas();
   loadAllVideos(videoUrls)
-  .then((videos) => {
-      // Todos los videos se han cargado correctamente
-      console.log('Todos los videos se han cargado correctamente:', videos);
-      // Asignar videos a cada cara
-      for (let i = 0; i < 6; i++) {
-          //gTextures[i] = videos[i];
-          gTextures[i] = null;
-      }
-      // Renderizar tu cubo con los videos
-      render();
-  })
-  .catch(() => {
-      // Al menos un video no se cargó correctamente
-      console.error('Error al cargar los videos.');
-  });
-  // Cargar videos solo después de configurar la interfaz
+    .then(() => {
+        // Renderizar tu cubo con los videos
+        render();
+    })
+    .catch((error) => {
+        console.error('Error cargando videos:', error);
+    });
 
 }
 
@@ -424,10 +415,24 @@ function quad(a, b, c, d) {
  *  define as seis faces de um cubo usando os 8 vértices
  */
 let gCaras = [];  // Agrega esta línea para definir gCaras
+// Función para cargar texturas
+// Definir las URL de los videos
+const videoUrls = [
+  "video_url_rojo.mp4",
+  "video_url_verde.mp4",
+  "video_url_azul.mp4",
+  "video_url_amarillo.mp4",
+  "video_url_magenta.mp4",
+  "video_url_cian.mp4",
+];
+// Crear un array para almacenar las texturas
+//const gTextures = Array(6).fill(null);
 
+// Crear un array para almacenar las caras del cubo
+//const gCaras = [];
 function crieCubo() {
   quad(1, 0, 3, 2);
-  quad(2, 3, 7, 6);
+  quad(2, 3, 7, 6);   
   quad(3, 0, 4, 7);
   quad(6, 5, 1, 2);
   quad(4, 5, 6, 7);
@@ -435,7 +440,13 @@ function crieCubo() {
 
   // Llenar gCaras con las caras del cubo
   for (let i = 0; i < 6; i++) {
+    const videoUrl = videoUrls[i];
+    //gTextures.push(loadVideoToTexture(videoUrl, i));
+    //numerarCara(i);
+    const texture = loadVideoToTexture(videoUrl, i);
+    gTextures.push(texture);
     numerarCara(i);
+}
 }
 
 function numerarCara(faceIndex) {
@@ -447,10 +458,11 @@ function numerarCara(faceIndex) {
     // Llamar a la función quad una vez para cada cara
     quad(baseIndex, baseIndex + 1, baseIndex + 2, baseIndex + 3);
 }
-}
+
 
 // Modifica la función configureTextureFromVideo
 function configureTextureFromVideo(video, faceIndex) {
+  console.log('Configurando textura para la cara:', faceIndex);
   // Verificar que el índice de cara sea válido
   if (faceIndex >= 0 && faceIndex < gTextures.length) {
       // Crear una textura WebGL
@@ -487,81 +499,93 @@ function isPowerOf2(value) {
   return (value & (value - 1)) === 0;
 }
 
-// Función para cargar el video en el reproductor
-function loadVideoToTexture(videoUrl, texture) {
-  // Crear un video por cada URL
-  const videos = videoUrls.map(videoUrls => {
-    const video = document.createElement('video');
-    video.crossOrigin = 'anonymous';
-    video.src = videoUrl;
-    video.loop = true;
-    video.muted = true;
-    video.play();
-    return video;
+// Función para cargar texturas
+let cv;
+let isOpencvReady = false;
+
+function onOpenCvReady() {
+  console.log('OpenCV.js está listo');
+  // Verificar si OpenCV.js está listo
+  if (cv) {
+    isOpencvReady = true;
+
+    // La función a ejecutar cuando OpenCV.js esté listo
+    loadAllVideos(videoUrls)
+        .then(() => {
+            // Renderizar tu cubo con los videos
+            render();
+        })
+        .catch((error) => {
+            console.error('Error cargando videos:', error);
+        });
+  }
+}
+
+ 
+function loadVideoToTexture(videoUrl, texture, faceIndex) {
+  const video = document.createElement('video');
+  video.crossOrigin = 'anonymous';
+  video.autoplay = true;
+  video.muted = true;
+  video.loop = true;
+
+  // Asigna el evento para manejar el error de carga del video
+  video.addEventListener('error', function () {
+    console.error('Error cargando el video:', videoUrl);
   });
 
-  // Cuando el primer video está cargado, actualizar la textura
-  videos[0].onloadedmetadata = function() {
-    console.log("Video cargado, duración: " + videos[0].duration + " segundos");
-    configureTextureFromVideo(videos[0], texture);
+  // Asigna el evento que se ejecuta cuando el video se carga correctamente
+  video.addEventListener('loadeddata', function () {
+    // Configura la textura con el video
+    configureTextureFromVideo(video, faceIndex);
 
-    // Llama a render solo cuando el video está listo
-    if (videoReady) {
-      render();
-    }
-  };
+    // Elimina el evento de carga, ya que ya se cargó el video
+    video.removeEventListener('loadeddata', this);
+  });
 
-  // Al cargar suficientes datos, intentar reproducir el primer video
-  // Al cargar suficientes datos, intentar reproducir el video
-
+  // Establece la fuente del video y comienza la carga
+  video.src = videoUrl;
 }
 
+
+// Función para cargar todos los videos
 function loadAllVideos(videoUrls) {
-  // Creamos un array para almacenar todas las promesas de carga de videos
-  const videoPromises = [];
+  const videoTextures = [];
 
   // Iteramos sobre las URL de los videos
-  for (let i = 0; i < videoUrls.length; i++) {
-    const videoUrl = videoUrls[i];
+  const loadPromises = videoUrls.map((videoUrl, i) => {
+    return loadVideoToTexture(videoUrl, i)
+      .then((video) => {
+        videoTextures.push(video);
+      })
+      .catch((error) => {
+        console.error(`Error cargando el video desde ${videoUrl}:`, error);
+        // Puedes decidir cómo manejar el error, como cargar una textura de error o simplemente ignorarlo
+      });
+  });
 
-    // Creamos una promesa para cargar cada video
-    const videoPromise = new Promise((resolve, reject) => {
-      const video = document.createElement('video');
-      video.crossOrigin = 'anonymous';
-      video.src = videoUrl;
+  // Resuelve la promesa cuando todas las texturas de video se han cargado (o han fallado)
+  return Promise.all(loadPromises).then(() => videoTextures);
+}
 
-      video.onerror = function(error) {
-        console.error('Error al cargar el video:', error);
-        reject(new Error(`Error al cargar el video: ${videoUrl}`)); // Rechazamos la promesa con un error
-      };
 
-      video.load();
-      // Intentar reproducir el video directamente después de cargarlo
-   video.play().then(() => {
-    console.log(`Video cargado: ${videoUrl}, duración: ${video.duration} segundos`);
-    resolve(video);
- }).catch(error => {
-    console.error('Error al reproducir el video:', error);
- });
+
+
+// Obtener el botón y agregar un evento de clic
+const playButton = document.getElementById('playButton');
+playButton.addEventListener('click', playAllVideos);
+
+// Función para reproducir todos los videos
+function playAllVideos() {
+  // Iterar sobre todos los videos y reproducirlos
+  gTextures.forEach((video, index) => {
+    video.play().catch(error => {
+      // Manejar cualquier error de reproducción
+      console.error(`Error al reproducir el video en la cara ${index}:`, error);
     });
-
-    // Agregamos la promesa al array
-    videoPromises.push(videoPromise);
-  }
-
-  // Retornamos una promesa que se resuelve cuando todos los videos se han cargado
-  return Promise.all(videoPromises);
+  });
 }
 
-function playVideo() {
-  if (video.duration > 0) {
-    console.log(`Reproduciendo video: ${videoUrl}`);
-    video.play();
-  } else {
-    console.error(`Error: El video no tiene duración.`);
-    reject(new Error(`Error: El video no tiene duración.`));
-  }
-}
 
 
 // Obtener referencias a elementos HTML
@@ -622,27 +646,8 @@ function obtenerIndiceDeCaraPorColor(color) {
   return indice !== -1 ? indice : 0;
 }
 
-let cv;
-let isOpencvReady = false;
 
-function onOpenCvReady() {
-  cv = cv || window.cv;
-  isOpencvReady = true;
-  cargarTexturas();
-}
 
-// Función para cargar texturas
-// Definir las URL de los videos
-const videoUrls = [
-  "video_url_rojo.mp4",
-  "video_url_verde.mp4",
-  "video_url_azul.mp4",
-  "video_url_amarillo.mp4",
-  "video_url_magenta.mp4",
-  "video_url_cian.mp4",
-
-];
-// Asignar videos a cada cara
 // Asignar videos a cada cara
 let videoReady = false;
 let currentFaceIndex = 0;
@@ -650,21 +655,6 @@ const videos = [];
 var gTextures = Array(6).fill(null);
 //const gTextures = [];
 
-for (let i = 0; i < videoUrls.length; i++) {
-    const video = document.createElement('video');
-    video.src = videoUrls[i];
-    video.loop = true;
-    video.muted = true;
-
-    // Asignar cada video a la textura correspondiente
-    const texture = new THREE.VideoTexture(video);
-    gTextures[i] = texture;
-
-    // Asignar la textura al material de la cara
-    gCaras[i].material.map = texture;
-
-    videos.push(video);
-}
 // Al cargar suficientes datos, intentar reproducir el video
 videos[currentFaceIndex].addEventListener('loadeddata', function () {
   videos[currentFaceIndex].play();
@@ -689,23 +679,35 @@ for (let i = 0; i < gCaras.length; i++) {
 
 
 
-loadVideoToTexture(videoUrls[currentFaceIndex], currentFaceIndex);
+//loadVideoToTexture(videoUrls[currentFaceIndex], currentFaceIndex);
+loadVideoToTexture(videoUrl, gTextures[faceIndex], faceIndex);
 
 // Modifica la función handleVideoSelect para cargar el video usando loadVideoToTexture
-function handleVideoSelect() {
+
+function handleVideoSelect(event) {
   console.log("Evento de cambio activado");
-  const selectedVideo = videoInput.files[0];
-  if (selectedVideo) {
-      const videoUrls = URL.createObjectURL(selectedVideo);
+  const selectedVideo = event.target.files[0];
 
-      // Obtén el índice de la cara actualmente seleccionada
-      const currentColor = colorList.value;
-      const currentFaceIndex = obtenerIndiceDeCaraPorColor(currentColor);
+  if (selectedVideo && isOpencvReady) {
+    const videoUrl = URL.createObjectURL(selectedVideo);
 
+    // Obtén el índice de la cara actualmente seleccionada
+    const currentColor = colorList.value;
+    const currentFaceIndex = obtenerIndiceDeCaraPorColor(currentColor);
+
+    console.log("Color seleccionado:", currentColor);
+    console.log("Índice de cara:", currentFaceIndex);
+
+    // Verifica que el índice de cara sea válido
+    if (currentFaceIndex !== undefined && currentFaceIndex >= 0 && currentFaceIndex < gTextures.length) {
       // Cargar el video en el contexto WebGL y actualizar la textura
-      loadVideoToTexture([videoUrls], currentFaceIndex);
+      loadVideoToTexture(videoUrl, gTextures[currentFaceIndex], currentFaceIndex);
+    } else {
+      console.error("Índice de cara no válido:", currentFaceIndex);
+    }
   }
 }
+
 
 function animate() {
   requestAnimationFrame(animate);
