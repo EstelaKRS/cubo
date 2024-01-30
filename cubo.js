@@ -31,7 +31,6 @@ const FAR = 50;
 var gl;
 var gCanvas;
 var gShader = {};  // encapsula globais do shader
-let miCubo;
 
 // guarda dados da interface e contexto do desenho
 var gCtx = {
@@ -80,13 +79,17 @@ function main() {
   } else {
     console.error("Elemento 'fileInput' no encontrado en el documento.");
   }
+  scene = new THREE.Scene();
 
   // Crear cubo con textura y numerar las caras
   crieCubo();  
+
  // Inicializar la matriz de texturas (6 caras x N videos por cara)
  for (let i = 0; i < 6; i++) {
-  //gTextures[i] = ['video_url_1', 'video_url_2', 'video_url_3', 'video_url_4', 'video_url_5', 'video_url_6'];
-  gTextures[i] = videos[i];
+  let texture = gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D, texture);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array([0, 0, 0, 0])); // Puedes ajustar estos valores según tus necesidades
+  gTextures.push(texture);
 }
 
   // Configuración de la interfaz
@@ -109,7 +112,7 @@ function main() {
     render(); // Intenta renderizar después de cargar los videos
   })
   .catch((error) => {
-    console.error('Error cargando videos:', error);
+    console.error(`Error cargando el video desde ${videoUrl}:`, error);
   });
   
 }
@@ -132,42 +135,25 @@ function crieInterface() {
   document.getElementById("pButton").onclick = function () {
     gCtx.pause = !gCtx.pause;
   };
+
   // Manejar el cambio de color seleccionado
-  document.getElementById("colorList").addEventListener('change', function() {
+  document.getElementById("colorList").addEventListener('change', function () {
     gCurrentColor = this.value;
-  
     const faceIndex = obtenerIndiceDeCaraPorColor(gCurrentColor);
     console.log('Índice de cara:', faceIndex);
-  
+
     // Obtén el elemento de video
     var video = document.getElementById("video");
-  
+
     // Cargar el video correspondiente a la cara específica
-    console.log('Valor de faceIndex en crieInterface:', faceIndex);
-    //loadVideoToTexture(videoUrls, currentFaceIndex);
-    colorList.addEventListener('change', () => {
-      // Obtener el color seleccionado
-      const selectedColor = colorList.value;
-      // Obtener el índice del color seleccionado
-      const colorIndex = obtenerIndiceDeCaraPorColor(selectedColor);
-      // Obtener la URL del video asociado al color utilizando el índice
-      const videoUrl = videoUrls[colorIndex];
-      const videoTexture = gTextures[colorIndex];
-    
-      // Mostrar el botón de seleccionar video
-      videoButton.style.display = 'block';
-    
-      // Cargar el video en el reproductor
-      loadVideoToTexture(videoUrl, videoTexture);
-    });
     configureTextureFromVideo(video, faceIndex);
   });
+
   // Nuevo botón para seleccionar video
   const videoInput = document.getElementById('videoInput');
   videoInput.addEventListener('change', handleVideoSelect);
   
-}  
-
+}
 // ==================================================================
 /**
  * cria e configura os shaders
@@ -240,7 +226,7 @@ function render() {
   // Iterar sobre las caras y renderizar cada una con su número
   for (let i = 0; i < 6; i++) {
     gl.uniform1i(gShader.uNumeroCara, i + 1);
-    //configureTextureFromVideo(gTextures[i], i); // Configurar la textura del video
+    //gl.bindTexture(gl.TEXTURE_2D, gCaras[i]);  // Usa gCaras en lugar de gTextures
     gl.drawArrays(gl.TRIANGLES, i * 6, 6);
   }
 
@@ -440,6 +426,7 @@ function quad(a, b, c, d) {
  *  define as seis faces de um cubo usando os 8 vértices
  */
 let gCaras = [];  // Agrega esta línea para definir gCaras
+//let gCaras = Array(6).fill(null);
 // Función para cargar texturas
 // Definir las URL de los videos
 const videoUrls = [
@@ -450,29 +437,35 @@ const videoUrls = [
   "video_url_magenta.mp4",
   "video_url_cian.mp4",
 ];
-// Crear un array para almacenar las texturas
-//const gTextures = Array(6).fill(null);
 
 // Crear un array para almacenar las caras del cubo
 //const gCaras = [];
+let scene;
 function crieCubo() {
+  // Crear las caras del cubo
   quad(1, 0, 3, 2);
-  quad(2, 3, 7, 6);   
+  quad(2, 3, 7, 6);
   quad(3, 0, 4, 7);
   quad(6, 5, 1, 2);
   quad(4, 5, 6, 7);
   quad(5, 4, 0, 1);
 
-  // Llenar gCaras con las caras del cubo
+  // Crear las caras 3D del cubo
   for (let i = 0; i < 6; i++) {
+    const geometry = new THREE.BoxGeometry(1, 1, 1);
+    const material = new THREE.MeshBasicMaterial({ map: gTextures[i], side: THREE.DoubleSide });
+    const cara = new THREE.Mesh(geometry, material);
+    gCaras.push(cara);
+    scene.add(cara);
+
     const videoUrl = videoUrls[i];
-    //gTextures.push(loadVideoToTexture(videoUrl, i));
-    //numerarCara(i);
     const texture = loadVideoToTexture(videoUrl, i);
     gTextures.push(texture);
+
     numerarCara(i);
+  }
 }
-}
+
 
 function numerarCara(faceIndex) {
     const baseIndex = faceIndex * 4;
@@ -487,52 +480,25 @@ function numerarCara(faceIndex) {
 
 // Modifica la función configureTextureFromVideo
 function configureTextureFromVideo(video, faceIndex) {
+  console.log(`Configurando textura desde el video para la cara ${faceIndex}`);
   const texture = gl.createTexture();
-  gl.activeTexture(gl.TEXTURE0 + faceIndex);
   gl.bindTexture(gl.TEXTURE_2D, texture);
-
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, gl.RGB, gl.UNSIGNED_BYTE, video);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+  gl.generateMipmap(gl.TEXTURE_2D);
 
-  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, video);
-
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WIDTH, video.videoWidth);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_HEIGHT, video.videoHeight);
-
-  // Modificación: Agregar controlador de eventos de error al video
-  video.addEventListener('error', (event) => {
-    console.error(`Error cargando el video para la cara ${faceIndex}:`, event);
-  });
-  console.log(`Textura configurada desde video para la cara ${faceIndex}`);
-
-  // Three.js integration
-  let videoTexture = new THREE.VideoTexture(video);
-  videoTexture.minFilter = THREE.LinearFilter;
-  videoTexture.magFilter = THREE.LinearFilter;
-
-  let movieMaterial = new THREE.MeshBasicMaterial({ map: videoTexture });
-
-  // Asignar el material al cubo o a las caras individuales del cubo
-  // Supongamos que tu cubo se llama 'miCubo'
-  // Aquí asumimos que tienes un array de caras en el objeto miCubo y asignamos el material a la cara correspondiente
-  miCubo.faces[faceIndex].material = movieMaterial;
-
-  return texture;
+  // Actualizar el array de texturas
+  gCaras[faceIndex] = texture;
 }
+
 
 // Función para verificar si un número es potencia de 2
 function isPowerOf2(value) {
   return (value & (value - 1)) === 0;
 }
-function configurarTexturas() {
-  // Asegúrate de que miCubo esté definido antes de intentar configurar las texturas
-  if (miCubo) {
-      configureTextureFromVideo(miCubo, gTextures[0], 0);
-  } else {
-      console.error('miCubo no está definido. Asegúrate de cargar el modelo del cubo.');
-  }
-}
+
 // Función para cargar texturas
 let cv;
 let isOpencvReady = false;
@@ -555,20 +521,20 @@ function onOpenCvReady() {
     });
   }
 }
-// Ejemplo de cómo podrías configurar las texturas
-
-
+// configuración de las texturas
 function loadVideoToTexture(videoUrl, faceIndex) {
+  console.log(`Cargando video desde ${videoUrl} para la cara ${faceIndex}`);
   return new Promise((resolve) => {
     const video = document.createElement('video');
     video.crossOrigin = 'anonymous';
     video.autoplay = true;
     video.muted = true;
     video.loop = true;
+    video.src = videoUrl;
 
     video.addEventListener('error', (event) => {
       console.error(`Error cargando el video desde ${videoUrl} para la cara ${faceIndex}:`, event);
-      resolve(null); // Resolve con null en caso de error
+      resolve(null); // Resuelve con null en caso de error
     });
 
     video.addEventListener('loadeddata', function loadedDataHandler() {
@@ -576,12 +542,14 @@ function loadVideoToTexture(videoUrl, faceIndex) {
       // Configuración adicional después de cargar el video
       configureTextureFromVideo(video, faceIndex);
       video.removeEventListener('loadeddata', loadedDataHandler);
-      resolve(video);
+      resolve(video); // ¡Añade esta línea para resolver la promesa con el video!
     });
 
-    video.src = videoUrl;
+    // Importante cargar el video para que se dispare el evento loadeddata
+    video.load();
   });
 }
+
 
 // Función para cargar todos los videos
 function loadAllVideos(videoUrls) {
@@ -589,10 +557,10 @@ function loadAllVideos(videoUrls) {
 
   const loadPromises = videoUrls.map((videoUrl, i) => {
     return loadVideoToTexture(videoUrl, i)
-      .then((video) => {
-        videoTextures.push(video);
+      .then((texture) => {
+        videoTextures.push(texture);
         console.log(`Video cargado para la cara ${i}`);
-        return video;  // Añadido para devolver el video
+        // No es necesario devolver el video, ya que estás manejando las texturas aquí
       })
       .catch((error) => {
         console.error(`Error cargando el video desde ${videoUrl}:`, error);
@@ -602,9 +570,9 @@ function loadAllVideos(videoUrls) {
       });
   });
 
-  return Promise.all(loadPromises).then((results) => {
+  return Promise.all(loadPromises).then(() => {
     console.log('Todos los videos cargados');
-    console.log('Texturas:', videoTextures); // Corregir aquí a videoTextures
+    console.log('Texturas:', videoTextures);
     // Aquí puedes inspeccionar las texturas y sus propiedades, como width y height
     videoTextures.forEach((texture, index) => {
         console.log(`Textura ${index}:`, texture);
@@ -616,6 +584,7 @@ function loadAllVideos(videoUrls) {
     console.error('Error general cargando videos:', overallError);
   });
 }
+
 
 // Obtener el botón y agregar un evento de clic
 const playButton = document.getElementById('playButton');
@@ -722,15 +691,31 @@ videos.forEach((video, faceIndex) => {
     }
   });
 });
-
-//Texturas para cada cara
+// Texturas para cada cara
+// Texturas para cada cara
+//let gTextures = [];
+// Actualizar la textura en cada frame
+for (let i = 0; i < gTextures.length; i++) {
+  if (gTextures[i] !== null) {
+    gTextures[i].update();
+  }
+}
+/*
 for (let i = 0; i < gCaras.length; i++) {
   const cara = gCaras[i];
-  // Crear textura vacía y asignarla a la cara
-  const texture = new THREE.Texture();
-  cara.material.map = texture;
-  gTextures.push(texture);
+
+  // Verificar que cara no sea null y sea un objeto válido
+  if (cara !== null && typeof cara === 'object') {
+    // Crear textura vacía y asignarla a la cara
+    const texture = new THREE.Texture();
+    cara.material.map = texture;
+    gTextures.push(texture);
+  } else {
+    console.error(`La cara en la posición ${i} no es un objeto válido.`);
+  }
 }
+*/
+
 
 // Modifica la función handleVideoSelect para cargar el video usando loadVideoToTexture
 function handleVideoSelect(event) {
@@ -787,16 +772,16 @@ function handleFileSelect(event) {
       videoUrls.push(videoUrl);
     }
 
-    // Cargar los videos y renderizar después de la carga
-    loadAllVideos(videoUrls)
-      .then((loadedVideos) => {
-          console.log('Videos cargados:', loadedVideos);
-          gTextures = loadedVideos;
-          render(); // Intenta renderizar después de cargar los videos
-      })
-      .catch((error) => {
-          console.error('Error cargando videos:', error);
-      });
+     // Cargar los videos y renderizar después de la carga
+     loadAllVideos(videoUrls)
+     .then((loadedVideos) => {
+         console.log('Videos cargados:', loadedVideos);
+         gTextures = loadedVideos;
+         render(); // Intenta renderizar después de cargar los videos
+     })
+     .catch((error) => {
+         console.error('Error cargando videos:', error);
+     });
   }
   console.log('Carga de videos completada');
 }
