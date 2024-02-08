@@ -231,6 +231,8 @@ function crieShaders() {
  * Assume que os dados já foram carregados e são estáticos.
  */
 function render() {
+  console.log('Texturas:', gTextures);
+    //console.log('Videos cargados:', gVideos);
   //console.log('Renderizando...');
   gl.useProgram(gShader.program);
   gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
@@ -446,18 +448,19 @@ let gCaras = [];  // Agrega esta línea para definir gCaras
 // Esta función cargará todos los videos y configurará las texturas
 async function cargarVideos(files) {
   const videos = await Promise.all(Array.from(files).map((file, index) => cargarVideo(file, index)));
-  
+
   // Asegurémonos de que todos los videos se cargaron correctamente
   if (videos.every(video => video instanceof HTMLVideoElement && !video.error)) {
     console.log('Todos los videos cargados');
+    gVideos.push(...videos);  // Añadir los videos al array gVideos
+    console.log('Videos cargados:', gVideos);
     console.log("Longitud de videoTextures después de cargar:", videoTextures.length);
     console.log("Longitud de gVideos después de cargar:", gVideos.length);
-    // Ahora puedes usar el array de videos según sea necesario
-    // videos[0] para la cara 0, videos[1] para la cara 1, y así sucesivamente
   } else {
     console.log('Al menos un video no se cargó correctamente');
   }
 }
+
 
 
 // Llamamos a la función para cargar los videos al cargar la página
@@ -483,15 +486,10 @@ function crieCubo() {
 }
 
 // Modifica la función numerarCara para que funcione con las nuevas incorporaciones
-var texturasConfiguradas = new Array(6).fill(false);
+const texturasConfiguradas = new Array(6).fill(false);
 
 // En tu función numerarCara, actualiza la llamada a configureTextureFromVideo
-function numerarCara(faceIndex,videoTextures) {
-  console.log("Tipo de faceIndex:", typeof faceIndex);
-  console.log("Valor de faceIndex:", faceIndex);
-  console.log("Longitud de videoTextures:", videoTextures.length);
-  console.log("Longitud de gVideos:", gVideos.length);
-
+function numerarCara(faceIndex, videoTextures) {
   console.log("Calculando índice de cara para el color:", faceIndex);
 
   if (faceIndex >= 0 && faceIndex < videoTextures.length) {
@@ -509,22 +507,14 @@ function numerarCara(faceIndex,videoTextures) {
   } else {
     console.error("Índice de cara fuera de rango:", faceIndex);
   }
+  console.log("Configurando textura desde el video para la cara", faceIndex);
+configureTextureFromVideo(gl, videoTextures[faceIndex], gVideos[faceIndex], faceIndex);
+
 }
 
-// Modifica la función configureTextureFromVideo
-/*function configureTextureFromVideo(video, faceIndex) {
-  console.log(`Configurando textura desde el video para la cara ${faceIndex}`);
-  const texture = gl.createTexture();
-  gl.bindTexture(gl.TEXTURE_2D, texture);
-  gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
-  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, gl.RGB, gl.UNSIGNED_BYTE, video);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-  gl.generateMipmap(gl.TEXTURE_2D);
 
-  // Actualizar el array de texturas
-  gTextures[faceIndex] = texture;
-}*/
+
+
 
 // Asegúrate de que el video esté completamente cargado antes de usar la textura
 video.addEventListener('loadeddata', function loadedDataHandler() {
@@ -539,6 +529,10 @@ video.addEventListener('loadeddata', function loadedDataHandler() {
 
 // Función para configurar la textura desde el video
 function configureTextureFromVideo(gl, texture, video, faceIndex) {
+  console.log('Texturas después de configurar:', gTextures);
+  console.log('Configurando textura desde el video para la cara', faceIndex);
+
+
   // Asegúrate de que haya un video y tenga dimensiones válidas
   if (!video || !video.videoWidth || !video.videoHeight) {
     console.error(`Error: Video no válido para la cara ${faceIndex}`);
@@ -585,15 +579,12 @@ function isPowerOf2(value) {
 }
 
 // Función para cargar texturas
-let cv;
+/*let cv;
 let isOpencvReady = false;
 
+// Función para verificar y llamar a onOpenCvReady
 function onOpenCvReady() {
   console.log('OpenCV.js está listo');
-if (!isOpencvReady) {
-  console.error('OpenCV no está listo correctamente');
-  return;
-}
 
   // Verificar si OpenCV.js está listo
   if (cv) {
@@ -605,44 +596,18 @@ if (!isOpencvReady) {
         console.log('Videos cargados:', loadedVideos);
         gTextures = loadedVideos;
         render(); // Intenta renderizar después de cargar los videos
+        handleVideoSelect('tuColor'); // Puedes pasar el color que necesites
       })
       .catch((error) => {
         console.error('Error cargando videos:', error);
       });
   } else {
-    console.error('OpenCV.js no está cargado correctamente');
+    console.error('OpenCV.js no está cargado correctamente o el elemento de color no se encontró');
   }
-}
+}*/
+
 
 // configuración de las texturas
-/*function cargarVideo(videoUrl, faceIndex) {
-  console.log(`Cargando video desde ${videoUrl} para la cara ${faceIndex}`);
-  return new Promise((resolve) => {
-    const video = document.createElement('video');
-    video.crossOrigin = 'anonymous';
-    video.autoplay = true;
-    video.muted = true;
-    video.loop = true;
-    video.src = videoUrl;
-
-    video.addEventListener('error', (event) => {
-      console.error(`Error cargando el video desde ${videoUrl} para la cara ${faceIndex}:`, event);
-      resolve(null); // Resuelve con null en caso de error
-    });
-
-    video.addEventListener('loadeddata', function loadedDataHandler() {
-      console.log(`Video cargado para la cara ${faceIndex}`);
-      // Configuración adicional después de cargar el video
-      configureTextureFromVideo(video, faceIndex);
-      video.removeEventListener('loadeddata', loadedDataHandler);
-      resolve(video); // ¡Añade esta línea para resolver la promesa con el video!
-    });
-
-    // Importante cargar el video para que se dispare el evento loadeddata
-    video.load();
-  });
-}*/
-// Esta función acepta un objeto File y el índice de la cara
 // Esta función acepta un objeto File y el índice de la cara
 let gTextures = []; // Asegúrate de que gTextures esté definido
 let gVideos = [];   // Asegúrate de que gVideos esté definido
@@ -650,6 +615,8 @@ let videoTexture = [];
 let videoUrls = [];
 
 function cargarVideo(file, faceIndex) {
+  gVideos[index] = video;
+
   console.log(`Cargando video para la cara ${faceIndex}`);
 
   return new Promise((resolve, reject) => {
@@ -666,31 +633,41 @@ function cargarVideo(file, faceIndex) {
       video.addEventListener('error', (event) => {
         console.error(`Error cargando el video para la cara ${faceIndex}:`, event);
         URL.revokeObjectURL(videoUrl);
-        reject(`Error cargando video para la cara ${faceIndex}`);
+        reject(`Error cargando video para la cara ${faceIndex}`, event);
       });
+      
 
       video.addEventListener('loadeddata', function loadedDataHandler() {
         console.log(`Video cargado para la cara ${faceIndex}`);
-        // Configurar la textura WebGL aquí
-        const videoTexture = configureTextureFromVideo(gl, video);
-        resolve({ video, videoTexture });
-        video.removeEventListener('loadeddata', loadedDataHandler);
-        URL.revokeObjectURL(videoUrl);
+         // Configurar la textura WebGL aquí
+        try {
+          const videoTexture = configureTextureFromVideo(gl, null, video, faceIndex);
+          gVideos[faceIndex] = video; // Agregar el video al array
+          resolve({ video, videoTexture });
+        } catch (error) {
+          console.error(`Error configurando textura para la cara ${faceIndex}:`, error);
+          reject(`Error configurando textura para la cara ${faceIndex}`);
+        } finally {
+          video.removeEventListener('loadeddata', loadedDataHandler);
+          URL.revokeObjectURL(videoUrl);
+        }
       });
+      video.addEventListener('error', function errorHandler() {
+        console.error(`Error cargando el video para la cara ${faceIndex}`);
+    });
+
     } else {
       console.error(`Error: La URL del objeto File no es válida para la cara ${faceIndex}`);
-      resolve(null);
+      reject(`Error: La URL del objeto File no es válida para la cara ${faceIndex}`);
     }
   });
 }
 
 
-
-
 // Función para cargar todos los videos
 function loadAllVideos() {
   const loadPromises = videoUrls.map((videoUrl, i) => {
-    return cargarVideo(videoUrl, i, gTextures[i]) // Pasar la textura WebGL como argumento
+    return cargarVideo(videoUrl, i) // Pasar la textura WebGL como argumento
       .then((video) => {
         if (video) {
           // No necesitas configurar la textura aquí, ya que se hace en cargarVideo
@@ -837,99 +814,26 @@ for (let i = 0; i < gTextures.length; i++) {
 // Modifica la función handleVideoSelect para cargar el video usando cargarVideo
 function handleVideoSelect(color) {
   console.log('handleVideoSelect llamada');
-
-  if (!isOpencvReady) {
-    console.error('OpenCV no está listo.');
-    return;
-  }
-
-  const selectedVideo = event.target.files[0];
-
-  if (!selectedVideo) {
-    console.error('No se seleccionó ningún video.');
-    return;
-  }
-
-  const currentColor = colorList.value;
-  const currentFaceIndex = obtenerIndiceDeCaraPorColor(currentColor);
-
-  console.log('currentColor:', currentColor);
-  console.log('currentFaceIndex:', currentFaceIndex);
-  console.log('Color seleccionado:', color);
-  console.log('Índice de cara:', selectedFaceIndex);
-
-  if (currentFaceIndex !== undefined && currentFaceIndex >= 0 && currentFaceIndex < gTextures.length) {
-    cargarVideo(selectedVideo, currentFaceIndex)
-      .then(({ video, videoTexture }) => {
-        if (video) {
-          gTextures[currentFaceIndex] = videoTexture;
-          gVideos[currentFaceIndex] = video;
-          console.log('Video cargado correctamente en la textura de la cara:', currentFaceIndex);
-          // Renderizar o hacer lo que sea necesario aquí
-        } else {
-          console.error('Error al cargar video:', error);
-        }
-      })
-      .catch((error) => {
-        console.error('Error al cargar video:', error);
-      });
-  } else {
-    console.error("Índice de cara no válido:", currentFaceIndex);
-  }
-}
-
-
-/*function handleVideoSelect(event, faceIndex) {
-  const input = event.target;
-  const files = input.files;
-
-  if (files.length > 0) {
-    const videoUrl = URL.createObjectURL(files[0]);
-    videoUrls.push(videoUrl);
-
-    // Ahora, utiliza la función cargarVideo para cargar el video
-    cargarVideo(selectedFile, faceIndex)
-      .then((video) => {
-        if (video) {
-          console.log(`Video cargado correctamente para la cara ${faceIndex}`);
-        } else {
-          console.log(`Error cargando el video para la cara ${faceIndex}`);
-        }
-      })
-      .catch((error) => {
-        console.error(`Error cargando el video para la cara ${faceIndex}:`, error);
-      });
-      // Cargar todos los videos nuevamente
-    loadAllVideos();
-  }
-}*/
-
-/*function handleFileSelect(event) {
-  console.log('Comenzando la carga de videos');
+  console.log('currentColor:', color);
   const files = event.target.files;
 
-  if (files.length > 0) {
-    const videoUrls = [];
+  // Obtén las URLs de los videos seleccionados
+  const videoUrls = Array.from(files).map(file => URL.createObjectURL(file));
+   // Cargar todos los videos
+  loadAllVideos(videoUrls).then(videos => {
+    // Asegúrate de que gTextures esté definida antes de usarla
+  if (gTextures && gTextures.length > 0) {
+    const currentFaceIndex = calculateFaceIndexForColor(color);
+    console.log('currentFaceIndex:', currentFaceIndex);
 
-    for (let i = 0; i < files.length; i++) {
-      const file = files[i];
-      const videoUrl = URL.createObjectURL(file);
-      videoUrls.push(videoUrl);
-    }
-
-     // Cargar los videos y renderizar después de la carga
-     loadAllVideos(videoUrls)
-     .then((loadedVideos) => {
-         console.log('Videos cargados:', loadedVideos);
-         gTextures = loadedVideos;
-         render(); // Intenta renderizar después de cargar los videos
-     })
-     .catch((error) => {
-         console.error('Error cargando videos:', error);
-     });
+    render();
+  } else {
+    console.error('gTextures no está definida o es un array vacío');
   }
-  console.log('Carga de videos completada');
-}*/
+  });
+  
+}
+
 
 function handleFileSelect(event) {
   const files = event.target.files;
