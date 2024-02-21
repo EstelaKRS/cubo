@@ -2,50 +2,40 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cubo 3D</title>
-    <link rel="stylesheet" href="botones.css">
-    <script src="libs/macWebglUtils.js"></script>
-    <script src="libs/MVnew.js"></script>
-    <!-- <script src="opencv.js"></script> -->
-    <!-- <script src="opencv.js" onload="onOpenCvReady();" type="text/javascript"></script> -->
+    <title>Cubo con Imágenes</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-
-
+    <script src="cubo.js"></script>
 </head>
+<style>
+    .canvas-container {
+        position: relative;
+    }
+
+    #selectColor {
+        margin-right: 10px;
+    }
+
+    #selectColorButton {
+        position: fixed;
+        top: 10px;
+        left: 10px;
+    }
+</style>
 <body>
-    <h1>Cubo con videos</h1>
+    <h1>Cubo con Imágenes</h1>
     <div class="canvas-container">
         <canvas id="glcanvas" width="400" height="400"></canvas>
-        <button id="xButton">Rotar X</button>
-        <button id="yButton">Rotar Y</button>
-        <button id="zButton">Rotar Z</button>
-        <button id="pButton">Pausa/Rotar</button>
-        <button id="playButton">Play</button>
-
-
-        <div class="dropdown">
-            <button id="colorButton" class="dropbtn">Seleccionar Color</button>
-            <div id="colorDropdown" style="display: none;">
-                <select id="colorList">
-                    <option value="rojo">Rojo</option>
-                    <option value="verde">Verde</option>
-                    <option value="azul">Azul</option>
-                    <option value="amarillo">Amarillo</option>
-                    <option value="magenta">Magenta</option>
-                    <option value="cian">Cian</option>
-                </select>
-                <button id="videoButton">Seleccionar Video</button>
-                <input type="file" id="videoInput" accept="video/*" style="display:none;"onchange="handleVideoSelect(event)">
-            </div>
-        </div>
+        <label for="selectColor">Seleccionar Color:</label>
+        <select id="selectColor">
+            <option value="blanco">Blanco</option>
+            <option value="rojo">Rojo</option>
+            <option value="verde">Oliva</option>
+            <option value="magenta">Turquesa</option>
+            <option value="negro">Picker</option>
+            <option value="gris">Gris</option>
+        </select>
+        <button id="selectImageButton" style="display:none;">Seleccionar Imagen</button>
     </div>
-
-    <video id="video" autoplay controls style="display:none">
-        Tu navegador no soporta la etiqueta de video.
-    </video>
-
-    <script src="cubo.js"></script>
 </body>
 </html>
