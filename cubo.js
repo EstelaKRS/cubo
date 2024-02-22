@@ -23,15 +23,12 @@ document.addEventListener('DOMContentLoaded', function () {
 
   var geometry = new THREE.BoxGeometry();
 
-  // Arreglo para almacenar las texturas de cada cara
+  // Arreglo para almacenar las texturas o videos de cada cara
   var textures = Array(6).fill(null);
 
-  // Índice de la cara actual
-  var currentFaceIndex = 0;
-
-  // Crear materiales con las texturas asignadas
-  var materials = Array(6).fill(null).map(function (material, index) {
-    return new THREE.MeshBasicMaterial({ map: textures[index] });
+  // Crear materiales con las texturas o videos asignados
+  var materials = Array(6).fill(null).map(function(_, index) {
+    return new THREE.MeshBasicMaterial({ map: textures[index], side: THREE.DoubleSide });
   });
 
   // Asignar los materiales al cubo
@@ -111,19 +108,18 @@ document.addEventListener('DOMContentLoaded', function () {
     pauseRotateCube();
   });
 
-  // Botón para seleccionar imagen para cada cara
-  var selectImageButton = createButton('Seleccionar Imágenes', function () {
-    selectImages();
+  // Botón para seleccionar video para cada cara
+  var selectVideoButton = createButton('Seleccionar Videos', function () {
+    selectVideos();
   });
 
   buttonContainer.appendChild(rotateXButton);
   buttonContainer.appendChild(rotateYButton);
   buttonContainer.appendChild(rotateZButton);
   buttonContainer.appendChild(pauseButton);
-  buttonContainer.appendChild(selectImageButton);
+  buttonContainer.appendChild(selectVideoButton);
 
   document.body.appendChild(buttonContainer);
-
   // Función para crear botones
   function createButton(text, clickHandler) {
     var button = document.createElement('button');
@@ -132,39 +128,48 @@ document.addEventListener('DOMContentLoaded', function () {
     return button;
   }
 
-  // Función para seleccionar imágenes para cada cara
-  function selectImages() {
+  // Función para seleccionar videos para cada cara
+  function selectVideos() {
     var input = document.createElement('input');
     input.type = 'file';
-    input.accept = 'image/*';
+    input.accept = 'video/*';
     input.multiple = true;
-    input.addEventListener('change', handleImageSelection);
+    input.addEventListener('change', handleVideoSelection);
     input.click();
   }
 
-  // Manejador de eventos para la selección de imágenes
-  function handleImageSelection(event) {
-    console.log("Imágenes seleccionadas");
+  var currentVideoIndex = 0;
 
-    var files = event.target.files;
-    if (files.length > 0) {
-      for (var i = 0; i < Math.min(6, files.length); i++) {
-        // Carga la imagen seleccionada como textura
-        var texture = new THREE.TextureLoader().load(URL.createObjectURL(files[i]));
+function handleVideoSelection(event) {
+  console.log("Videos seleccionados");
 
-        // Almacena la textura en el arreglo
-        textures[currentFaceIndex] = texture;
+  var files = event.target.files;
+  if (files.length > 0) {
+    for (var i = 0; i < Math.min(6, files.length); i++) {
+      // Crea un elemento de video único para cada cara
+      var video = document.createElement('video');
+      video.src = URL.createObjectURL(files[i]);
+      video.loop = true;
+      video.muted = true;
+      video.play();
 
-        // Actualiza el material de la cara correspondiente del cubo
-        cube.material[currentFaceIndex].map = texture;
-        cube.material[currentFaceIndex].needsUpdate = true;
+      // Crea una textura de video única para cada cara
+      var videoTexture = new THREE.VideoTexture(video);
+      videoTexture.minFilter = THREE.LinearFilter;
 
-        // Incrementa el índice para la siguiente cara
-        currentFaceIndex = (currentFaceIndex + 1) % 6;
-      }
+      // Almacena la textura de video en el arreglo
+      textures[currentVideoIndex] = videoTexture;
 
-      // Reprende el renderizado para actualizar los cambios
-      renderer.render(scene, camera);
+      // Actualiza el material de la cara correspondiente del cubo
+      cube.material[currentVideoIndex].map = videoTexture;
+      cube.material[currentVideoIndex].needsUpdate = true;
+
+      // Incrementa el índice para la siguiente cara
+      currentVideoIndex = (currentVideoIndex + 1) % 6;
     }
+
+    // Reprende el renderizado para actualizar los cambios
+    renderer.render(scene, camera);
   }
+} 
 });
