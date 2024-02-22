@@ -26,16 +26,15 @@ document.addEventListener('DOMContentLoaded', function () {
   // Arreglo para almacenar las texturas de cada cara
   var textures = Array(6).fill(null);
 
-  // Colores iniciales para cada cara del cubo
-  var materials = [
-    new THREE.MeshBasicMaterial({ color: 0xFFFFFF }),  // Derecha // Blanco
-    new THREE.MeshBasicMaterial({ color: 0xFF0000 }),   // Izquierda // Rojo
-    new THREE.MeshBasicMaterial({ color: 0x808000 }),    // Superior // Oliva
-    new THREE.MeshBasicMaterial({ color: 0x008080}),    // Inferior // Turquesa
-    new THREE.MeshBasicMaterial({ color: 0xb9eac8 }),    // Frontal // Picker
-    new THREE.MeshBasicMaterial({ color: 0x333333 })     // Posterior // Gris Oscuro
-  ];
+  // Índice de la cara actual
+  var currentFaceIndex = 0;
 
+  // Crear materiales con las texturas asignadas
+  var materials = Array(6).fill(null).map(function (material, index) {
+    return new THREE.MeshBasicMaterial({ map: textures[index] });
+  });
+
+  // Asignar los materiales al cubo
   var cube = new THREE.Mesh(geometry, materials);
   cube.scale.set(3, 3, 3);
   scene.add(cube);
@@ -113,8 +112,8 @@ document.addEventListener('DOMContentLoaded', function () {
   });
 
   // Botón para seleccionar imagen para cada cara
-  var selectImageButton = createButton('Seleccionar Imagen', function () {
-    selectImage();
+  var selectImageButton = createButton('Seleccionar Imágenes', function () {
+    selectImages();
   });
 
   buttonContainer.appendChild(rotateXButton);
@@ -133,35 +132,36 @@ document.addEventListener('DOMContentLoaded', function () {
     return button;
   }
 
-  // Función para seleccionar una nueva imagen para cada cara
-  function selectImage() {
-    // Abre el diálogo de selección de archivos para cada cara
-    for (var i = 0; i < 6; i++) {
-      var input = document.createElement('input');
-      input.type = 'file';
-      input.accept = 'image/*';
-      input.dataset.index = i;
-      input.addEventListener('change', handleImageSelection);
-      input.click();
-    }
+  // Función para seleccionar imágenes para cada cara
+  function selectImages() {
+    var input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.multiple = true;
+    input.addEventListener('change', handleImageSelection);
+    input.click();
   }
 
   // Manejador de eventos para la selección de imágenes
   function handleImageSelection(event) {
-    console.log("Imagen seleccionada para la cara:", this.dataset.index);
+    console.log("Imágenes seleccionadas");
+
     var files = event.target.files;
     if (files.length > 0) {
-      var index = parseInt(this.dataset.index);
+      for (var i = 0; i < Math.min(6, files.length); i++) {
+        // Carga la imagen seleccionada como textura
+        var texture = new THREE.TextureLoader().load(URL.createObjectURL(files[i]));
 
-      // Carga la imagen seleccionada como textura
-      var texture = new THREE.TextureLoader().load(URL.createObjectURL(files[0]));
-      textures[index] = texture;
+        // Almacena la textura en el arreglo
+        textures[currentFaceIndex] = texture;
 
-      // Crea un nuevo material con la textura seleccionada
-      var newMaterial = new THREE.MeshBasicMaterial({ map: texture });
+        // Actualiza el material de la cara correspondiente del cubo
+        cube.material[currentFaceIndex].map = texture;
+        cube.material[currentFaceIndex].needsUpdate = true;
 
-      // Asigna el nuevo material solo a la cara correspondiente
-      cube.material[index] = newMaterial;
+        // Incrementa el índice para la siguiente cara
+        currentFaceIndex = (currentFaceIndex + 1) % 6;
+      }
 
       // Reprende el renderizado para actualizar los cambios
       renderer.render(scene, camera);
